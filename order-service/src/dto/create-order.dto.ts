@@ -1,23 +1,14 @@
-import { IsNotEmpty, IsNumber, IsString, Min, IsEmail } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, Min, IsEmail, IsOptional } from 'class-validator';
 
 export class CreateOrderDto {
   @IsNotEmpty()
   @IsString()
-  productId: string;
-
-  @IsNotEmpty()
-  @IsString()
-  productName: string;
+  productCode: string; // Changed from productId to productCode
 
   @IsNotEmpty()
   @IsNumber()
   @Min(1)
   quantity: number;
-
-  @IsNotEmpty()
-  @IsNumber()
-  @Min(0.01)
-  amount: number;
 
   @IsNotEmpty()
   @IsString()
@@ -26,4 +17,13 @@ export class CreateOrderDto {
   @IsNotEmpty()
   @IsEmail()
   customerEmail: string;
+
+  // Optional fields that will be filled from product catalog
+  @IsOptional()
+  @IsString()
+  productName?: string;
+
+  @IsOptional()
+  @IsNumber()
+  amount?: number;
 }

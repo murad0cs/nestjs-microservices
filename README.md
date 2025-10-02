@@ -2,6 +2,15 @@
 
 A professional microservices architecture implementation using NestJS, RabbitMQ, and PostgreSQL databases, demonstrating inter-service communication, data persistence, error handling, and Docker orchestration.
 
+## Key Features Added
+
+ **Product Catalog System** - Centralized product management with unique SKUs  
+ **Inventory Management** - Real-time stock tracking with automatic updates  
+ **Payment Retry System** - Retry failed payments with stock validation  
+ **Price Consistency** - Product prices managed centrally, not user-provided  
+ **Stock Recovery** - Automatic stock restoration on payment failures  
+ **Historical Pricing** - Orders preserve prices at time of purchase
+
 ## Architecture Overview
 
 This project consists of two microservices that communicate via RabbitMQ with persistent PostgreSQL databases:
@@ -71,8 +80,11 @@ USER                ORDER SERVICE              RABBITMQ              PAYMENT SER
 ## Features
 
 - **Microservices Architecture**: Two independent NestJS services
+- **Product Catalog Management**: Centralized product inventory with stock tracking
 - **Database Persistence**: PostgreSQL databases with TypeORM for data storage
 - **RabbitMQ Integration**: Reliable message passing with request/response pattern
+- **Payment Retry System**: Retry failed payments with stock validation
+- **Inventory Management**: Automatic stock tracking with increment/decrement on order status
 - **Error Handling**: Comprehensive error handling with retry logic
 - **Structured Logging**: Winston logger with file and console outputs
 - **Docker Support**: Full containerization with health checks
@@ -167,18 +179,49 @@ npm run start:dev
 
 ## API Documentation
 
+### Product Catalog Endpoints
+
+#### Get All Products
+**GET** `/products`
+
+Response:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid-here",
+      "productCode": "LAPTOP-001",
+      "name": "MacBook Pro M3",
+      "description": "Apple MacBook Pro 14-inch with M3 chip",
+      "price": 1999.99,
+      "currency": "USD",
+      "stockQuantity": 50,
+      "isActive": true,
+      "category": "Electronics",
+      "metadata": {"brand": "Apple", "warranty": "1 year"}
+    }
+  ],
+  "count": 8
+}
+```
+
+#### Get Product by Code
+**GET** `/products/code/:productCode`
+
+#### Get Product by ID
+**GET** `/products/:id`
+
 ### Order Service Endpoints
 
 #### Create Order
 **POST** `/orders`
 
-Request Body:
+Request Body (Simplified with Product Catalog):
 ```json
 {
-  "productId": "PROD-001",
-  "productName": "Laptop",
-  "quantity": 1,
-  "amount": 999.99,
+  "productCode": "LAPTOP-001",
+  "quantity": 2,
   "customerId": "CUST-123",
   "customerEmail": "customer@example.com"
 }
@@ -190,10 +233,11 @@ Response:
   "success": true,
   "data": {
     "id": "uuid-here",
-    "productId": "PROD-001",
-    "productName": "Laptop",
-    "quantity": 1,
-    "amount": 999.99,
+    "productCode": "LAPTOP-001",
+    "productName": "MacBook Pro M3",
+    "unitPrice": 1999.99,
+    "quantity": 2,
+    "totalAmount": 3999.98,
     "customerId": "CUST-123",
     "customerEmail": "customer@example.com",
     "status": "PAYMENT_SUCCESS",
@@ -201,6 +245,18 @@ Response:
     "createdAt": "2024-01-01T00:00:00.000Z",
     "updatedAt": "2024-01-01T00:00:01.000Z"
   }
+}
+```
+
+#### Retry Payment
+**POST** `/orders/:id/retry-payment`
+
+Response:
+```json
+{
+  "success": true,
+  "data": {...order details...},
+  "message": "Payment retry successful"
 }
 ```
 
@@ -262,14 +318,35 @@ Response:
 
 ## Database Schema
 
+### Products Table (orderdb)
+```sql
+CREATE TABLE products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  productCode VARCHAR UNIQUE NOT NULL,
+  name VARCHAR NOT NULL,
+  description TEXT,
+  price DECIMAL(10,2) NOT NULL,
+  currency VARCHAR DEFAULT 'USD',
+  stockQuantity INTEGER DEFAULT 0,
+  isActive BOOLEAN DEFAULT true,
+  category VARCHAR,
+  metadata JSONB,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX idx_products_productCode ON products(productCode);
+```
+
 ### Orders Table (orderdb)
 ```sql
 CREATE TABLE orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  productId VARCHAR NOT NULL,
+  productCode VARCHAR NOT NULL,
   productName VARCHAR NOT NULL,
+  unitPrice DECIMAL(10,2) NOT NULL,
   quantity INTEGER NOT NULL,
-  amount DECIMAL(10,2) NOT NULL,
+  totalAmount DECIMAL(10,2) NOT NULL,
   customerId VARCHAR NOT NULL,
   customerEmail VARCHAR NOT NULL,
   status VARCHAR NOT NULL,
@@ -302,40 +379,63 @@ CREATE INDEX idx_payments_orderId ON payments(orderId);
 CREATE INDEX idx_payments_status ON payments(status);
 ```
 
+## Product Catalog
+
+The system automatically seeds the following products on startup:
+
+| Product Code | Name | Price | Stock | Category |
+|-------------|------|-------|-------|----------|
+| LAPTOP-001 | MacBook Pro M3 | $1999.99 | 50 | Electronics |
+| PHONE-001 | iPhone 15 Pro | $1199.99 | 100 | Electronics |
+| HEADPHONE-001 | AirPods Pro | $249.99 | 200 | Audio |
+| TABLET-001 | iPad Air | $599.99 | 75 | Electronics |
+| WATCH-001 | Apple Watch Series 9 | $399.99 | 150 | Wearables |
+| KEYBOARD-001 | Magic Keyboard | $149.99 | 300 | Accessories |
+| MOUSE-001 | Magic Mouse | $79.99 | 250 | Accessories |
+| CABLE-001 | USB-C Cable | $29.99 | 500 | Accessories |
+
 ## Testing the System
 
 ### Using cURL
 
-1. Create an order:
+1. View available products:
+```bash
+curl http://localhost:3001/products
+```
+
+2. Create an order (using product code):
 ```bash
 curl -X POST http://localhost:3001/orders \
   -H "Content-Type: application/json" \
   -d '{
-    "productId": "PROD-001",
-    "productName": "Laptop",
-    "quantity": 1,
-    "amount": 999.99,
+    "productCode": "LAPTOP-001",
+    "quantity": 2,
     "customerId": "CUST-123",
     "customerEmail": "customer@example.com"
   }'
 ```
 
-2. Check order status:
+3. Check order status:
 ```bash
 curl http://localhost:3001/orders/{order-id}
 ```
 
-3. Get all orders:
+4. Retry a failed payment:
+```bash
+curl -X POST http://localhost:3001/orders/{order-id}/retry-payment
+```
+
+5. Get all orders:
 ```bash
 curl http://localhost:3001/orders
 ```
 
-4. Get all payments:
+6. Get all payments:
 ```bash
 curl http://localhost:3002/payments
 ```
 
-5. Get payment statistics:
+7. Get payment statistics:
 ```bash
 curl http://localhost:3002/payments/stats/summary
 ```
@@ -347,7 +447,13 @@ A complete Postman collection is included in the repository:
 1. Import `NestJS-Microservices.postman_collection.json`
 2. Import `NestJS-Microservices.postman_environment.json`
 3. Select "NestJS Microservices - Local" environment
-4. Run requests to test all endpoints
+4. The collection includes:
+   - Product Catalog endpoints
+   - Order creation with product codes
+   - Payment retry functionality
+   - Payment monitoring endpoints
+   - Test scenarios and load testing
+   - Full order flow testing
 
 See `POSTMAN_GUIDE.md` for detailed instructions.
 

@@ -8,16 +8,19 @@ export class Order {
   id: string;
 
   @Column()
-  productId: string;
+  productCode: string; // Reference to product catalog
 
   @Column()
-  productName: string;
+  productName: string; // Denormalized for historical record
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  unitPrice: number; // Price per unit at time of order
 
   @Column('int')
   quantity: number;
 
   @Column('decimal', { precision: 10, scale: 2 })
-  amount: number;
+  totalAmount: number; // quantity * unitPrice
 
   @Column()
   customerId: string;

@@ -5,10 +5,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrderController } from './order.controller';
 import { OrderService } from './order.service';
 import { Order } from '../entities/order.entity';
+import { ProductModule } from '../product/product.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Order]),
+    ProductModule, // Import to use ProductService
     ClientsModule.registerAsync([
       {
         name: 'PAYMENT_SERVICE',

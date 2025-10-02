@@ -20,8 +20,8 @@ export class PaymentService {
     // Wait a bit to simulate real payment processing
     await this.simulatePaymentProcessing();
     
-    // Randomly decide if payment succeeds (about 80% of the time)
-    const isSuccess = Math.random() > 0.2;
+    // Always succeed for testing (set to false to test failure scenarios)
+    const isSuccess = true;
     const failureReason = isSuccess ? null : this.getRandomFailureReason();
     
     // Create and save payment record

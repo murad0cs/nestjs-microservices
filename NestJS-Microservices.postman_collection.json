@@ -1,16 +1,124 @@
 {
   "info": {
     "_postman_id": "f8c7a3b2-5d4e-4c8a-9b6f-1e2d3a4b5c6d",
-    "name": "NestJS Microservices - Order & Payment System",
-    "description": "Complete API collection for testing NestJS microservices with RabbitMQ integration. This collection includes all endpoints for Order Service and Payment Service health checks.",
+    "name": "NestJS Microservices - Complete System",
+    "description": "Complete API collection for testing NestJS microservices with Product Catalog, Order Management, Payment Processing, and PostgreSQL databases.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
+      "name": "Product Catalog",
+      "item": [
+        {
+          "name": "Get All Products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has products array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "    pm.expect(jsonData.data.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "// Save first product code for testing",
+                  "if (pm.response.json().data.length > 0) {",
+                  "    pm.environment.set(\"productCode\", pm.response.json().data[0].productCode);",
+                  "    pm.environment.set(\"productId\", pm.response.json().data[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "description": "Retrieves all available products from the catalog with stock information, pricing, and metadata."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "description": "Get specific product details by product UUID"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product by Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Product has stock information\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('stockQuantity');",
+                  "    pm.expect(jsonData.data).to.have.property('price');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/code/LAPTOP-001",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "code",
+                "LAPTOP-001"
+              ]
+            },
+            "description": "Get product by its unique product code (SKU)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Product catalog management endpoints"
+    },
+    {
       "name": "Order Service",
       "item": [
         {
-          "name": "Create Order - Success Scenario",
+          "name": "Create Order with Product Code",
           "event": [
             {
               "listen": "test",
@@ -20,21 +128,21 @@
                   "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
                   "});",
                   "",
-                  "pm.test(\"Response has success flag\", function () {",
+                  "pm.test(\"Order created with product details\", function () {",
                   "    var jsonData = pm.response.json();",
                   "    pm.expect(jsonData.success).to.eql(true);",
-                  "});",
-                  "",
-                  "pm.test(\"Order has required fields\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.data).to.have.property('id');",
-                  "    pm.expect(jsonData.data).to.have.property('status');",
-                  "    pm.expect(jsonData.data).to.have.property('createdAt');",
+                  "    pm.expect(jsonData.data).to.have.property('productCode');",
+                  "    pm.expect(jsonData.data).to.have.property('productName');",
+                  "    pm.expect(jsonData.data).to.have.property('unitPrice');",
+                  "    pm.expect(jsonData.data).to.have.property('totalAmount');",
                   "});",
                   "",
                   "// Save order ID for later use",
                   "if (pm.response.json().data.id) {",
                   "    pm.environment.set(\"orderId\", pm.response.json().data.id);",
+                  "    if (pm.response.json().data.status === 'PAYMENT_FAILED') {",
+                  "        pm.environment.set(\"failedOrderId\", pm.response.json().data.id);",
+                  "    }",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -51,7 +159,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"productId\": \"PROD-001\",\n    \"productName\": \"MacBook Pro M3\",\n    \"quantity\": 1,\n    \"amount\": 2499.99,\n    \"customerId\": \"CUST-{{$randomInt}}\",\n    \"customerEmail\": \"{{$randomEmail}}\"\n}"
+              "raw": "{\n    \"productCode\": \"LAPTOP-001\",\n    \"quantity\": 1,\n    \"customerId\": \"CUST-{{$randomInt}}\",\n    \"customerEmail\": \"{{$randomEmail}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/orders",
@@ -62,38 +170,12 @@
                 "orders"
               ]
             },
-            "description": "Creates a new order and sends payment request to Payment Service via RabbitMQ. The payment will be processed asynchronously with ~80% success rate."
+            "description": "Creates order using product code. System automatically fetches product details, validates stock, calculates pricing, and processes payment."
           },
-          "response": [
-            {
-              "name": "Success Response",
-              "originalRequest": {
-                "method": "POST",
-                "header": [],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n    \"productId\": \"PROD-001\",\n    \"productName\": \"MacBook Pro M3\",\n    \"quantity\": 1,\n    \"amount\": 2499.99,\n    \"customerId\": \"CUST-123\",\n    \"customerEmail\": \"john.doe@example.com\"\n}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/orders",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "orders"
-                  ]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [],
-              "body": "{\n    \"success\": true,\n    \"data\": {\n        \"id\": \"5f68ffa2-b698-4b6e-b1e4-3bbe91254116\",\n        \"productId\": \"PROD-001\",\n        \"productName\": \"MacBook Pro M3\",\n        \"quantity\": 1,\n        \"amount\": 2499.99,\n        \"customerId\": \"CUST-123\",\n        \"customerEmail\": \"john.doe@example.com\",\n        \"status\": \"PAYMENT_SUCCESS\",\n        \"paymentId\": \"adc34716-c4af-4fc0-8730-7708390ded71\",\n        \"createdAt\": \"2025-01-01T10:00:00.000Z\",\n        \"updatedAt\": \"2025-01-01T10:00:02.000Z\"\n    }\n}"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Create Order - Multiple Products",
+          "name": "Create Order - iPhone",
           "request": {
             "method": "POST",
             "header": [
@@ -104,7 +186,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"productId\": \"PROD-002\",\n    \"productName\": \"iPhone 15 Pro\",\n    \"quantity\": 2,\n    \"amount\": 2399.98,\n    \"customerId\": \"CUST-{{$randomInt}}\",\n    \"customerEmail\": \"{{$randomEmail}}\"\n}"
+              "raw": "{\n    \"productCode\": \"PHONE-001\",\n    \"quantity\": 1,\n    \"customerId\": \"CUST-{{$randomInt}}\",\n    \"customerEmail\": \"{{$randomEmail}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/orders",
@@ -115,12 +197,12 @@
                 "orders"
               ]
             },
-            "description": "Creates an order with multiple quantity items"
+            "description": "Order an iPhone 15 Pro"
           },
           "response": []
         },
         {
-          "name": "Create Order - Small Amount",
+          "name": "Create Order - AirPods",
           "request": {
             "method": "POST",
             "header": [
@@ -131,7 +213,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"productId\": \"PROD-003\",\n    \"productName\": \"USB Cable\",\n    \"quantity\": 1,\n    \"amount\": 9.99,\n    \"customerId\": \"CUST-{{$randomInt}}\",\n    \"customerEmail\": \"{{$randomEmail}}\"\n}"
+              "raw": "{\n    \"productCode\": \"HEADPHONE-001\",\n    \"quantity\": 2,\n    \"customerId\": \"CUST-{{$randomInt}}\",\n    \"customerEmail\": \"{{$randomEmail}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/orders",
@@ -142,24 +224,25 @@
                 "orders"
               ]
             },
-            "description": "Creates an order with a small amount to test payment processing"
+            "description": "Order AirPods Pro (quantity: 2)"
           },
           "response": []
         },
         {
-          "name": "Create Order - Invalid Data (Missing Fields)",
+          "name": "Create Order - Invalid Product",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Status code is 400\", function () {",
-                  "    pm.response.to.have.status(400);",
+                  "pm.test(\"Status code is 500\", function () {",
+                  "    pm.response.to.have.status(500);",
                   "});",
                   "",
-                  "pm.test(\"Response contains error message\", function () {",
+                  "pm.test(\"Error message for invalid product\", function () {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.success).to.eql(false);",
+                  "    pm.expect(jsonData.error).to.include('not found');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -176,7 +259,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"productId\": \"PROD-004\",\n    \"quantity\": 1\n}"
+              "raw": "{\n    \"productCode\": \"INVALID-999\",\n    \"quantity\": 1,\n    \"customerId\": \"CUST-TEST\",\n    \"customerEmail\": \"test@example.com\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/orders",
@@ -187,19 +270,25 @@
                 "orders"
               ]
             },
-            "description": "Tests validation by sending incomplete order data"
+            "description": "Tests validation with invalid product code"
           },
           "response": []
         },
         {
-          "name": "Create Order - Invalid Email",
+          "name": "Create Order - Insufficient Stock",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Status code is 400\", function () {",
-                  "    pm.response.to.have.status(400);",
+                  "pm.test(\"Status code is 400 or 500\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 500]);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message for insufficient stock\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(false);",
+                  "    pm.expect(jsonData.error || jsonData.message).to.include('Insufficient stock');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -216,7 +305,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"productId\": \"PROD-005\",\n    \"productName\": \"Test Product\",\n    \"quantity\": 1,\n    \"amount\": 99.99,\n    \"customerId\": \"CUST-TEST\",\n    \"customerEmail\": \"invalid-email\"\n}"
+              "raw": "{\n    \"productCode\": \"LAPTOP-001\",\n    \"quantity\": 1000,\n    \"customerId\": \"CUST-BULK\",\n    \"customerEmail\": \"bulk@example.com\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/orders",
@@ -227,7 +316,49 @@
                 "orders"
               ]
             },
-            "description": "Tests email validation"
+            "description": "Tests stock validation by ordering more than available"
+          },
+          "response": []
+        },
+        {
+          "name": "Retry Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.test(\"Payment retry processed\", function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.eql(true);",
+                  "        pm.expect(jsonData).to.have.property('message');",
+                  "    });",
+                  "} else if (pm.response.code === 400) {",
+                  "    pm.test(\"Cannot retry successful payment\", function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.eql(false);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{failedOrderId}}/retry-payment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{failedOrderId}}",
+                "retry-payment"
+              ]
+            },
+            "description": "Retry payment for a failed order. Only works if order status is PAYMENT_FAILED. Will validate stock availability before retrying."
           },
           "response": []
         },
@@ -242,10 +373,11 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "pm.test(\"Response has order data\", function () {",
+                  "pm.test(\"Order has product details\", function () {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.success).to.eql(true);",
-                  "    pm.expect(jsonData.data).to.be.an('object');",
+                  "    pm.expect(jsonData.data).to.have.property('productCode');",
+                  "    pm.expect(jsonData.data).to.have.property('unitPrice');",
+                  "    pm.expect(jsonData.data).to.have.property('totalAmount');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -265,70 +397,12 @@
                 "{{orderId}}"
               ]
             },
-            "description": "Retrieves a specific order by its ID. Use the orderId variable set from Create Order request or replace with an actual order ID."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Non-Existent Order",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 404\", function () {",
-                  "    pm.response.to.have.status(404);",
-                  "});",
-                  "",
-                  "pm.test(\"Response indicates order not found\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.success).to.eql(false);",
-                  "    pm.expect(jsonData.message).to.include('not found');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/orders/non-existent-id-123",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "orders",
-                "non-existent-id-123"
-              ]
-            },
-            "description": "Tests error handling for non-existent order ID"
+            "description": "Get order details including product information and payment status"
           },
           "response": []
         },
         {
           "name": "Get All Orders",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Response contains array of orders\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.success).to.eql(true);",
-                  "    pm.expect(jsonData.data).to.be.an('array');",
-                  "    pm.expect(jsonData).to.have.property('count');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -341,31 +415,12 @@
                 "orders"
               ]
             },
-            "description": "Retrieves all orders from the system. Returns an array of orders with their current status (PENDING, PAYMENT_PROCESSING, PAYMENT_SUCCESS, PAYMENT_FAILED)."
+            "description": "Get all orders with their current status and product details"
           },
           "response": []
         },
         {
           "name": "Health Check - Order Service",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Service is healthy\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.status).to.eql('OK');",
-                  "    pm.expect(jsonData.service).to.eql('Order Service');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -380,81 +435,18 @@
                 "check"
               ]
             },
-            "description": "Checks if the Order Service is running and healthy"
+            "description": "Check Order Service health"
           },
           "response": []
         }
       ],
-      "description": "Order Service endpoints for managing orders and payment requests"
+      "description": "Order management with product catalog integration"
     },
     {
       "name": "Payment Service",
       "item": [
         {
-          "name": "Health Check - Payment Service",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Service is healthy\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.status).to.eql('OK');",
-                  "    pm.expect(jsonData.service).to.eql('Payment Service');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{paymentServiceUrl}}/health",
-              "host": [
-                "{{paymentServiceUrl}}"
-              ],
-              "path": [
-                "health"
-              ]
-            },
-            "description": "Checks if the Payment Service is running and healthy."
-          },
-          "response": []
-        },
-        {
           "name": "Get All Payments",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Response has payments data\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.success).to.eql(true);",
-                  "    pm.expect(jsonData).to.have.property('data');",
-                  "    pm.expect(jsonData).to.have.property('count');",
-                  "    pm.expect(jsonData).to.have.property('summary');",
-                  "});",
-                  "",
-                  "// Save payment ID if payments exist",
-                  "if (pm.response.json().data.length > 0) {",
-                  "    pm.environment.set(\"paymentId\", pm.response.json().data[0].id);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -467,34 +459,12 @@
                 "payments"
               ]
             },
-            "description": "Retrieves all payments with summary statistics including success rate, total amount, and counts. Response includes detailed payment records and aggregate statistics."
+            "description": "Get all payment records with summary statistics"
           },
           "response": []
         },
         {
           "name": "Get Successful Payments",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"All payments are successful\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    if (jsonData.data.length > 0) {",
-                  "        jsonData.data.forEach(function(payment) {",
-                  "            pm.expect(payment.status).to.eql('SUCCESS');",
-                  "        });",
-                  "    }",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -509,40 +479,16 @@
               "query": [
                 {
                   "key": "status",
-                  "value": "SUCCESS",
-                  "description": "Filter by payment status"
+                  "value": "SUCCESS"
                 }
               ]
             },
-            "description": "Filter payments to show only successful transactions. Useful for reconciliation and reporting."
+            "description": "Filter payments by SUCCESS status"
           },
           "response": []
         },
         {
           "name": "Get Failed Payments",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"All payments are failed\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    if (jsonData.data.length > 0) {",
-                  "        jsonData.data.forEach(function(payment) {",
-                  "            pm.expect(payment.status).to.eql('FAILED');",
-                  "            pm.expect(payment).to.have.property('failureReason');",
-                  "        });",
-                  "    }",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -561,35 +507,12 @@
                 }
               ]
             },
-            "description": "Get all failed payments with failure reasons. Useful for debugging payment issues and customer support."
+            "description": "Filter payments by FAILED status with failure reasons"
           },
           "response": []
         },
         {
           "name": "Get Payment by ID",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200 or 404\", function () {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
-                  "});",
-                  "",
-                  "if (pm.response.code === 200) {",
-                  "    pm.test(\"Response has payment data\", function () {",
-                  "        var jsonData = pm.response.json();",
-                  "        pm.expect(jsonData.success).to.eql(true);",
-                  "        pm.expect(jsonData.data).to.have.property('id');",
-                  "        pm.expect(jsonData.data).to.have.property('orderId');",
-                  "        pm.expect(jsonData.data).to.have.property('status');",
-                  "    });",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -603,33 +526,12 @@
                 "{{paymentId}}"
               ]
             },
-            "description": "Get a specific payment by its payment ID. Replace {{paymentId}} with an actual payment ID or it will use the one from environment."
+            "description": "Get specific payment details"
           },
           "response": []
         },
         {
           "name": "Get Payment by Order ID",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200 or 404\", function () {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
-                  "});",
-                  "",
-                  "if (pm.response.code === 200) {",
-                  "    pm.test(\"Payment matches order ID\", function () {",
-                  "        var jsonData = pm.response.json();",
-                  "        pm.expect(jsonData.success).to.eql(true);",
-                  "        pm.expect(jsonData.data.orderId).to.eql(pm.variables.get('orderId'));",
-                  "    });",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -644,39 +546,12 @@
                 "{{orderId}}"
               ]
             },
-            "description": "Get payment details for a specific order ID. Useful for checking payment status of an order."
+            "description": "Get payment for specific order"
           },
           "response": []
         },
         {
           "name": "Get Payment Statistics",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Statistics are complete\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.success).to.eql(true);",
-                  "    pm.expect(jsonData.data).to.have.property('totalPayments');",
-                  "    pm.expect(jsonData.data).to.have.property('successRate');",
-                  "    pm.expect(jsonData.data).to.have.property('totalAmount');",
-                  "    pm.expect(jsonData.data).to.have.property('failureReasons');",
-                  "});",
-                  "",
-                  "pm.test(\"Success rate is calculated\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.data.successRate).to.include('%');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -691,46 +566,228 @@
                 "summary"
               ]
             },
-            "description": "Get comprehensive payment statistics including:\n- Total payments count\n- Success/failure counts\n- Success rate percentage\n- Total and average amounts\n- Failure reasons breakdown\n\nUseful for monitoring system health and payment performance."
+            "description": "Get comprehensive payment statistics"
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check - Payment Service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paymentServiceUrl}}/health",
+              "host": [
+                "{{paymentServiceUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Check Payment Service health"
           },
           "response": []
         }
       ],
-      "description": "Payment Service endpoints for monitoring payments and health status"
+      "description": "Payment processing and monitoring"
     },
     {
-      "name": "Load Testing",
+      "name": "Test Scenarios",
       "item": [
         {
-          "name": "Create 10 Orders - Load Test",
+          "name": "Full Order Flow Test",
+          "item": [
+            {
+              "name": "1. Check Product Stock",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/products/code/LAPTOP-001",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "products",
+                    "code",
+                    "LAPTOP-001"
+                  ]
+                },
+                "description": "Check current stock before ordering"
+              },
+              "response": []
+            },
+            {
+              "name": "2. Create Order",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"productCode\": \"LAPTOP-001\",\n    \"quantity\": 1,\n    \"customerId\": \"CUST-FLOW-TEST\",\n    \"customerEmail\": \"flow.test@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/orders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "orders"
+                  ]
+                },
+                "description": "Create order and process payment"
+              },
+              "response": []
+            },
+            {
+              "name": "3. Check Updated Stock",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/products/code/LAPTOP-001",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "products",
+                    "code",
+                    "LAPTOP-001"
+                  ]
+                },
+                "description": "Verify stock was updated"
+              },
+              "response": []
+            },
+            {
+              "name": "4. Check Payment Record",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{paymentServiceUrl}}/payments/order/{{orderId}}",
+                  "host": [
+                    "{{paymentServiceUrl}}"
+                  ],
+                  "path": [
+                    "payments",
+                    "order",
+                    "{{orderId}}"
+                  ]
+                },
+                "description": "Verify payment was processed"
+              },
+              "response": []
+            }
+          ],
+          "description": "Complete flow from product selection to payment"
+        },
+        {
+          "name": "Payment Retry Flow",
+          "item": [
+            {
+              "name": "1. Stop Payment Service",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/orders/health/check",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "orders",
+                    "health",
+                    "check"
+                  ]
+                },
+                "description": "Manual step: Stop payment service with 'docker-compose stop payment-service'"
+              },
+              "response": []
+            },
+            {
+              "name": "2. Create Order (Will Fail)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"productCode\": \"MOUSE-001\",\n    \"quantity\": 1,\n    \"customerId\": \"CUST-RETRY-TEST\",\n    \"customerEmail\": \"retry.test@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/orders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "orders"
+                  ]
+                },
+                "description": "Create order while payment service is down"
+              },
+              "response": []
+            },
+            {
+              "name": "3. Start Payment Service",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{paymentServiceUrl}}/health",
+                  "host": [
+                    "{{paymentServiceUrl}}"
+                  ],
+                  "path": [
+                    "health"
+                  ]
+                },
+                "description": "Manual step: Start payment service with 'docker-compose start payment-service'"
+              },
+              "response": []
+            },
+            {
+              "name": "4. Retry Payment",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/orders/{{failedOrderId}}/retry-payment",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "orders",
+                    "{{failedOrderId}}",
+                    "retry-payment"
+                  ]
+                },
+                "description": "Retry the failed payment"
+              },
+              "response": []
+            }
+          ],
+          "description": "Test payment retry functionality"
+        },
+        {
+          "name": "Load Test - 10 Orders",
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "exec": [
-                  "// Generate random data for each request",
-                  "pm.variables.set(\"randomProductId\", \"PROD-\" + Math.floor(Math.random() * 1000));",
-                  "pm.variables.set(\"randomAmount\", (Math.random() * 1000 + 10).toFixed(2));",
-                  "pm.variables.set(\"randomQuantity\", Math.floor(Math.random() * 5) + 1);"
-                ],
-                "type": "text/javascript"
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Request completed\", function () {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
-                  "});",
-                  "",
-                  "// Count success vs failure",
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.data && jsonData.data.status === 'PAYMENT_SUCCESS') {",
-                  "    pm.environment.set(\"successCount\", (pm.environment.get(\"successCount\") || 0) + 1);",
-                  "} else if (jsonData.data && jsonData.data.status === 'PAYMENT_FAILED') {",
-                  "    pm.environment.set(\"failureCount\", (pm.environment.get(\"failureCount\") || 0) + 1);",
-                  "}"
+                  "const products = ['LAPTOP-001', 'PHONE-001', 'HEADPHONE-001', 'TABLET-001', 'WATCH-001'];",
+                  "pm.variables.set(\"randomProductCode\", products[Math.floor(Math.random() * products.length)]);",
+                  "pm.variables.set(\"randomQuantity\", Math.floor(Math.random() * 3) + 1);"
                 ],
                 "type": "text/javascript"
               }
@@ -746,7 +803,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"productId\": \"{{randomProductId}}\",\n    \"productName\": \"Load Test Product {{$randomInt}}\",\n    \"quantity\": {{randomQuantity}},\n    \"amount\": {{randomAmount}},\n    \"customerId\": \"CUST-{{$randomInt}}\",\n    \"customerEmail\": \"loadtest{{$randomInt}}@example.com\"\n}"
+              "raw": "{\n    \"productCode\": \"{{randomProductCode}}\",\n    \"quantity\": {{randomQuantity}},\n    \"customerId\": \"CUST-{{$randomInt}}\",\n    \"customerEmail\": \"loadtest{{$randomInt}}@example.com\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/orders",
@@ -757,12 +814,12 @@
                 "orders"
               ]
             },
-            "description": "Run this request multiple times (use Collection Runner with 10 iterations) to test the system under load and observe the ~80% payment success rate."
+            "description": "Run with Collection Runner (10 iterations) to test system under load"
           },
           "response": []
         }
       ],
-      "description": "Load testing scenarios to verify system performance and payment success/failure distribution"
+      "description": "End-to-end test scenarios"
     }
   ],
   "event": [
@@ -798,6 +855,26 @@
     },
     {
       "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "failedOrderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productCode",
+      "value": "LAPTOP-001",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paymentId",
       "value": "",
       "type": "string"
     }

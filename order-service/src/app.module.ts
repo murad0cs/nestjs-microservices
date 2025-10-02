@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 import { OrderModule } from './order/order.module';
+import { ProductModule } from './product/product.module';
 import configuration from './config/configuration';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -34,6 +35,7 @@ import { getDatabaseConfig } from './config/database.config';
         }),
       ],
     }),
+    ProductModule, // Import before OrderModule so products are seeded first
     OrderModule,
   ],
 })
