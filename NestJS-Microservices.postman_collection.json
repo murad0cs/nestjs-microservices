@@ -1,0 +1,805 @@
+{
+  "info": {
+    "_postman_id": "f8c7a3b2-5d4e-4c8a-9b6f-1e2d3a4b5c6d",
+    "name": "NestJS Microservices - Order & Payment System",
+    "description": "Complete API collection for testing NestJS microservices with RabbitMQ integration. This collection includes all endpoints for Order Service and Payment Service health checks.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Order Service",
+      "item": [
+        {
+          "name": "Create Order - Success Scenario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 or 200\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has success flag\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test(\"Order has required fields\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('id');",
+                  "    pm.expect(jsonData.data).to.have.property('status');",
+                  "    pm.expect(jsonData.data).to.have.property('createdAt');",
+                  "});",
+                  "",
+                  "// Save order ID for later use",
+                  "if (pm.response.json().data.id) {",
+                  "    pm.environment.set(\"orderId\", pm.response.json().data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"productId\": \"PROD-001\",\n    \"productName\": \"MacBook Pro M3\",\n    \"quantity\": 1,\n    \"amount\": 2499.99,\n    \"customerId\": \"CUST-{{$randomInt}}\",\n    \"customerEmail\": \"{{$randomEmail}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "Creates a new order and sends payment request to Payment Service via RabbitMQ. The payment will be processed asynchronously with ~80% success rate."
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"productId\": \"PROD-001\",\n    \"productName\": \"MacBook Pro M3\",\n    \"quantity\": 1,\n    \"amount\": 2499.99,\n    \"customerId\": \"CUST-123\",\n    \"customerEmail\": \"john.doe@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/orders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "orders"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "body": "{\n    \"success\": true,\n    \"data\": {\n        \"id\": \"5f68ffa2-b698-4b6e-b1e4-3bbe91254116\",\n        \"productId\": \"PROD-001\",\n        \"productName\": \"MacBook Pro M3\",\n        \"quantity\": 1,\n        \"amount\": 2499.99,\n        \"customerId\": \"CUST-123\",\n        \"customerEmail\": \"john.doe@example.com\",\n        \"status\": \"PAYMENT_SUCCESS\",\n        \"paymentId\": \"adc34716-c4af-4fc0-8730-7708390ded71\",\n        \"createdAt\": \"2025-01-01T10:00:00.000Z\",\n        \"updatedAt\": \"2025-01-01T10:00:02.000Z\"\n    }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Order - Multiple Products",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"productId\": \"PROD-002\",\n    \"productName\": \"iPhone 15 Pro\",\n    \"quantity\": 2,\n    \"amount\": 2399.98,\n    \"customerId\": \"CUST-{{$randomInt}}\",\n    \"customerEmail\": \"{{$randomEmail}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "Creates an order with multiple quantity items"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order - Small Amount",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"productId\": \"PROD-003\",\n    \"productName\": \"USB Cable\",\n    \"quantity\": 1,\n    \"amount\": 9.99,\n    \"customerId\": \"CUST-{{$randomInt}}\",\n    \"customerEmail\": \"{{$randomEmail}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "Creates an order with a small amount to test payment processing"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order - Invalid Data (Missing Fields)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains error message\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"productId\": \"PROD-004\",\n    \"quantity\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "Tests validation by sending incomplete order data"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order - Invalid Email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"productId\": \"PROD-005\",\n    \"productName\": \"Test Product\",\n    \"quantity\": 1,\n    \"amount\": 99.99,\n    \"customerId\": \"CUST-TEST\",\n    \"customerEmail\": \"invalid-email\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "Tests email validation"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has order data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data).to.be.an('object');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "description": "Retrieves a specific order by its ID. Use the orderId variable set from Create Order request or replace with an actual order ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Non-Existent Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Response indicates order not found\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(false);",
+                  "    pm.expect(jsonData.message).to.include('not found');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/non-existent-id-123",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "non-existent-id-123"
+              ]
+            },
+            "description": "Tests error handling for non-existent order ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Orders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains array of orders\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "    pm.expect(jsonData).to.have.property('count');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "Retrieves all orders from the system. Returns an array of orders with their current status (PENDING, PAYMENT_PROCESSING, PAYMENT_SUCCESS, PAYMENT_FAILED)."
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check - Order Service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Service is healthy\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('OK');",
+                  "    pm.expect(jsonData.service).to.eql('Order Service');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/health/check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "health",
+                "check"
+              ]
+            },
+            "description": "Checks if the Order Service is running and healthy"
+          },
+          "response": []
+        }
+      ],
+      "description": "Order Service endpoints for managing orders and payment requests"
+    },
+    {
+      "name": "Payment Service",
+      "item": [
+        {
+          "name": "Health Check - Payment Service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Service is healthy\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('OK');",
+                  "    pm.expect(jsonData.service).to.eql('Payment Service');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paymentServiceUrl}}/health",
+              "host": [
+                "{{paymentServiceUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Checks if the Payment Service is running and healthy."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Payments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has payments data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData).to.have.property('count');",
+                  "    pm.expect(jsonData).to.have.property('summary');",
+                  "});",
+                  "",
+                  "// Save payment ID if payments exist",
+                  "if (pm.response.json().data.length > 0) {",
+                  "    pm.environment.set(\"paymentId\", pm.response.json().data[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paymentServiceUrl}}/payments",
+              "host": [
+                "{{paymentServiceUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            },
+            "description": "Retrieves all payments with summary statistics including success rate, total amount, and counts. Response includes detailed payment records and aggregate statistics."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Successful Payments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"All payments are successful\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data.length > 0) {",
+                  "        jsonData.data.forEach(function(payment) {",
+                  "            pm.expect(payment.status).to.eql('SUCCESS');",
+                  "        });",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paymentServiceUrl}}/payments?status=SUCCESS",
+              "host": [
+                "{{paymentServiceUrl}}"
+              ],
+              "path": [
+                "payments"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "SUCCESS",
+                  "description": "Filter by payment status"
+                }
+              ]
+            },
+            "description": "Filter payments to show only successful transactions. Useful for reconciliation and reporting."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Failed Payments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"All payments are failed\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data.length > 0) {",
+                  "        jsonData.data.forEach(function(payment) {",
+                  "            pm.expect(payment.status).to.eql('FAILED');",
+                  "            pm.expect(payment).to.have.property('failureReason');",
+                  "        });",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paymentServiceUrl}}/payments?status=FAILED",
+              "host": [
+                "{{paymentServiceUrl}}"
+              ],
+              "path": [
+                "payments"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "FAILED"
+                }
+              ]
+            },
+            "description": "Get all failed payments with failure reasons. Useful for debugging payment issues and customer support."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 404\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test(\"Response has payment data\", function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.eql(true);",
+                  "        pm.expect(jsonData.data).to.have.property('id');",
+                  "        pm.expect(jsonData.data).to.have.property('orderId');",
+                  "        pm.expect(jsonData.data).to.have.property('status');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paymentServiceUrl}}/payments/{{paymentId}}",
+              "host": [
+                "{{paymentServiceUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}"
+              ]
+            },
+            "description": "Get a specific payment by its payment ID. Replace {{paymentId}} with an actual payment ID or it will use the one from environment."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment by Order ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 404\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test(\"Payment matches order ID\", function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.eql(true);",
+                  "        pm.expect(jsonData.data.orderId).to.eql(pm.variables.get('orderId'));",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paymentServiceUrl}}/payments/order/{{orderId}}",
+              "host": [
+                "{{paymentServiceUrl}}"
+              ],
+              "path": [
+                "payments",
+                "order",
+                "{{orderId}}"
+              ]
+            },
+            "description": "Get payment details for a specific order ID. Useful for checking payment status of an order."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment Statistics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Statistics are complete\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data).to.have.property('totalPayments');",
+                  "    pm.expect(jsonData.data).to.have.property('successRate');",
+                  "    pm.expect(jsonData.data).to.have.property('totalAmount');",
+                  "    pm.expect(jsonData.data).to.have.property('failureReasons');",
+                  "});",
+                  "",
+                  "pm.test(\"Success rate is calculated\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.successRate).to.include('%');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paymentServiceUrl}}/payments/stats/summary",
+              "host": [
+                "{{paymentServiceUrl}}"
+              ],
+              "path": [
+                "payments",
+                "stats",
+                "summary"
+              ]
+            },
+            "description": "Get comprehensive payment statistics including:\n- Total payments count\n- Success/failure counts\n- Success rate percentage\n- Total and average amounts\n- Failure reasons breakdown\n\nUseful for monitoring system health and payment performance."
+          },
+          "response": []
+        }
+      ],
+      "description": "Payment Service endpoints for monitoring payments and health status"
+    },
+    {
+      "name": "Load Testing",
+      "item": [
+        {
+          "name": "Create 10 Orders - Load Test",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate random data for each request",
+                  "pm.variables.set(\"randomProductId\", \"PROD-\" + Math.floor(Math.random() * 1000));",
+                  "pm.variables.set(\"randomAmount\", (Math.random() * 1000 + 10).toFixed(2));",
+                  "pm.variables.set(\"randomQuantity\", Math.floor(Math.random() * 5) + 1);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Request completed\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "// Count success vs failure",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.status === 'PAYMENT_SUCCESS') {",
+                  "    pm.environment.set(\"successCount\", (pm.environment.get(\"successCount\") || 0) + 1);",
+                  "} else if (jsonData.data && jsonData.data.status === 'PAYMENT_FAILED') {",
+                  "    pm.environment.set(\"failureCount\", (pm.environment.get(\"failureCount\") || 0) + 1);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"productId\": \"{{randomProductId}}\",\n    \"productName\": \"Load Test Product {{$randomInt}}\",\n    \"quantity\": {{randomQuantity}},\n    \"amount\": {{randomAmount}},\n    \"customerId\": \"CUST-{{$randomInt}}\",\n    \"customerEmail\": \"loadtest{{$randomInt}}@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "Run this request multiple times (use Collection Runner with 10 iterations) to test the system under load and observe the ~80% payment success rate."
+          },
+          "response": []
+        }
+      ],
+      "description": "Load testing scenarios to verify system performance and payment success/failure distribution"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "paymentServiceUrl",
+      "value": "http://localhost:3002",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

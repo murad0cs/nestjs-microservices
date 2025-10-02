@@ -1,0 +1,135 @@
+version: '3.8'
+
+services:
+  postgres-order:
+    image: postgres:15-alpine
+    container_name: postgres-order
+    environment:
+      POSTGRES_DB: orderdb
+      POSTGRES_USER: orderuser
+      POSTGRES_PASSWORD: orderpass123
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_order_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orderuser -d orderdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices-network
+
+  postgres-payment:
+    image: postgres:15-alpine
+    container_name: postgres-payment
+    environment:
+      POSTGRES_DB: paymentdb
+      POSTGRES_USER: paymentuser
+      POSTGRES_PASSWORD: paymentpass123
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_payment_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paymentuser -d paymentdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices-network
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - microservices-network
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+      RABBITMQ_QUEUE: payment_queue
+      DB_HOST: postgres-order
+      DB_PORT: 5432
+      DB_USERNAME: orderuser
+      DB_PASSWORD: orderpass123
+      DB_DATABASE: orderdb
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres-order:
+        condition: service_healthy
+    volumes:
+      - ./order-service/logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/orders/health/check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+      RABBITMQ_QUEUE: payment_queue
+      DB_HOST: postgres-payment
+      DB_PORT: 5432
+      DB_USERNAME: paymentuser
+      DB_PASSWORD: paymentpass123
+      DB_DATABASE: paymentdb
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres-payment:
+        condition: service_healthy
+    volumes:
+      - ./payment-service/logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+networks:
+  microservices-network:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
+  postgres_order_data:
+  postgres_payment_data:
