@@ -99,6 +99,90 @@ USER                ORDER SERVICE              RABBITMQ              PAYMENT SER
 - Docker and Docker Compose
 - Git
 
+## Testing
+
+### Running Tests
+
+The project includes comprehensive unit, integration, and E2E tests organized by category:
+
+```bash
+# Run all tests for both services
+./run-tests.sh
+
+# Run specific test categories:
+cd order-service
+npm run test              # All tests
+npm run test:unit         # Only unit tests
+npm run test:integration  # Only integration tests  
+npm run test:e2e          # Only E2E tests
+npm run test:watch        # Watch mode
+npm run test:cov          # Coverage report
+
+cd payment-service
+npm run test              # All tests
+npm run test:unit         # Only unit tests
+npm run test:integration  # Only integration tests
+npm run test:e2e          # Only E2E tests
+npm run test:watch        # Watch mode
+npm run test:cov          # Coverage report
+```
+
+### Test Organization
+
+Tests are organized by category for better maintainability:
+
+```
+order-service/test/
+├── unit/                      # Isolated component tests
+│   ├── order.controller.spec.ts
+│   ├── order.service.spec.ts
+│   └── product.service.spec.ts
+├── integration/               # Service interaction tests
+│   └── order-payment.integration.spec.ts
+└── e2e/                      # API endpoint tests
+    └── order.e2e-spec.ts
+
+payment-service/test/
+├── unit/                      # Isolated component tests
+│   └── payment.service.spec.ts
+├── integration/               # Service interaction tests
+└── e2e/                      # API endpoint tests
+    └── payment.e2e-spec.ts
+```
+
+### Test Coverage
+
+The test suite includes:
+
+- **Unit Tests**: Service logic, controllers, and business rules
+  - Order creation and validation
+  - Product stock management
+  - Payment processing logic
+  - Error handling scenarios
+  
+- **Integration Tests**: Inter-service communication
+  - RabbitMQ message processing
+  - Stock management coordination
+  - Database transactions
+  
+- **E2E Tests**: Full API endpoint testing
+  - Order creation flow
+  - Payment retry functionality
+  - Product catalog endpoints
+  - Health check endpoints
+
+### Running Tests in Docker
+
+```bash
+# Run tests in Docker containers
+docker-compose exec order-service npm run test
+docker-compose exec payment-service npm run test
+
+# Run E2E tests
+docker-compose exec order-service npm run test:e2e
+docker-compose exec payment-service npm run test:e2e
+```
+
 ## Installation & Setup
 
 ### Option 1: Run with Docker (Recommended)
