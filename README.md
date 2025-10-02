@@ -2,6 +2,33 @@
 
 A professional microservices architecture implementation using NestJS, RabbitMQ, and PostgreSQL databases, demonstrating inter-service communication, data persistence, error handling, and Docker orchestration.
 
+## Security Features
+
+### Rate Limiting
+- Configurable rate limits per endpoint
+- 10 requests/second, 50 requests/10 seconds, 100 requests/minute
+- Prevents API abuse and DDoS attacks
+- Health endpoints excluded from rate limiting
+
+### Security Headers (Helmet)
+- Content Security Policy (CSP) enabled
+- HTTP Strict Transport Security (HSTS)
+- X-Frame-Options protection
+- X-Content-Type-Options: nosniff
+- Prevents common web vulnerabilities
+
+### CORS Configuration
+- Configurable allowed origins via environment variables
+- Credentials support for authenticated requests
+- Exposed headers for rate limit information
+- Proper preflight request handling
+
+### Input Validation
+- DTOs with class-validator
+- Whitelist strategy - only allow defined properties
+- Automatic type transformation
+- SQL injection prevention via TypeORM
+
 ## Key Features Added
 
  **Product Catalog System** - Centralized product management with unique SKUs  

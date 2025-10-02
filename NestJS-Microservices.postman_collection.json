@@ -592,6 +592,110 @@
       "description": "Payment processing and monitoring"
     },
     {
+      "name": "Security Tests",
+      "item": [
+        {
+          "name": "Test Rate Limiting",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "description": "Run this request multiple times quickly to test rate limiting. After 10 requests/second, you should get 429 Too Many Requests"
+          },
+          "response": []
+        },
+        {
+          "name": "Test CORS Preflight",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "http://localhost:3000",
+                "type": "text"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "POST",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "Tests CORS preflight request. Should return proper CORS headers"
+          },
+          "response": []
+        },
+        {
+          "name": "Test with CORS Headers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "http://localhost:3000",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "description": "Regular request with Origin header. Response should include Access-Control-Allow-Origin"
+          },
+          "response": []
+        },
+        {
+          "name": "Test Invalid Input Validation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"productCode\": \"\",\n    \"quantity\": -5,\n    \"customerId\": 12345,\n    \"customerEmail\": \"not-an-email\",\n    \"extraField\": \"should-be-stripped\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "Tests input validation. Should reject invalid data and strip unknown fields"
+          },
+          "response": []
+        }
+      ],
+      "description": "Security feature testing including rate limiting, CORS, and input validation"
+    },
+    {
       "name": "Test Scenarios",
       "item": [
         {
