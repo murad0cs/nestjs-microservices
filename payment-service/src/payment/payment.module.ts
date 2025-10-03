@@ -10,5 +10,6 @@ import { Payment } from '../entities/payment.entity';
   imports: [TypeOrmModule.forFeature([Payment])],
   controllers: [PaymentController, PaymentHttpController, HealthController],
   providers: [PaymentService],
+  exports: [PaymentService], // Export for DLQ consumer
 })
 export class PaymentModule {}

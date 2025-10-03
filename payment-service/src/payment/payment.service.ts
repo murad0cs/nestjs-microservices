@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { PaymentRequestDto } from '../dto/payment-request.dto';
 import { PaymentResponseDto } from '../dto/payment-response.dto';
 import { Payment } from '../entities/payment.entity';
+import { withSpan } from '../tracing/tracing';
 
 @Injectable()
 export class PaymentService {
@@ -15,7 +16,12 @@ export class PaymentService {
   ) {}
 
   async processPayment(paymentRequest: PaymentRequestDto): Promise<PaymentResponseDto> {
-    this.logger.log(`Processing payment for order: ${paymentRequest.orderId}, amount: $${paymentRequest.amount}`);
+    return withSpan('PaymentService.processPayment', {
+      'payment.order_id': paymentRequest.orderId,
+      'payment.amount': paymentRequest.amount,
+      'payment.customer_id': paymentRequest.customerId,
+    }, async () => {
+      this.logger.log(`Processing payment for order: ${paymentRequest.orderId}, amount: $${paymentRequest.amount}`);
     
     // Wait a bit to simulate real payment processing
     await this.simulatePaymentProcessing();
@@ -58,6 +64,7 @@ export class PaymentService {
     }
     
     return response;
+    }); // End of withSpan
   }
   
   private async simulatePaymentProcessing(): Promise<void> {

@@ -1,10 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as helmet from 'helmet';
+const helmet = require('helmet');
 import { AppModule } from './app.module';
+import { startTracing, stopTracing } from './tracing/tracing';
 
 async function bootstrap() {
+  // Start tracing before app initialization
+  await startTracing();
+  
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
   
@@ -53,5 +57,13 @@ async function bootstrap() {
 
   await app.listen(port);
   logger.log(`Order Service is running on port ${port}`);
+  
+  // Graceful shutdown
+  process.on('SIGTERM', async () => {
+    logger.log('SIGTERM signal received: closing HTTP server');
+    await app.close();
+    await stopTracing();
+    process.exit(0);
+  });
 }
 bootstrap();

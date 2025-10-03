@@ -26,7 +26,7 @@ export class PaymentHttpController {
         total: payments.length,
         successful: payments.filter(p => p.status === 'SUCCESS').length,
         failed: payments.filter(p => p.status === 'FAILED').length,
-        totalAmount: payments.reduce((sum, p) => sum + p.amount, 0),
+        totalAmount: payments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0).toFixed(2),
       }
     };
   }
@@ -85,11 +85,11 @@ export class PaymentHttpController {
       successRate: payments.length > 0 
         ? ((payments.filter(p => p.status === 'SUCCESS').length / payments.length) * 100).toFixed(2) + '%'
         : '0%',
-      totalAmount: payments.reduce((sum, p) => sum + p.amount, 0),
+      totalAmount: payments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0).toFixed(2),
       successfulAmount: payments.filter(p => p.status === 'SUCCESS')
-        .reduce((sum, p) => sum + p.amount, 0),
+        .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0).toFixed(2),
       averageAmount: payments.length > 0 
-        ? (payments.reduce((sum, p) => sum + p.amount, 0) / payments.length).toFixed(2)
+        ? (payments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) / payments.length).toFixed(2)
         : 0,
       failureReasons: payments
         .filter(p => p.status === 'FAILED' && p.failureReason)

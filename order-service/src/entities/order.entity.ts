@@ -30,7 +30,7 @@ export class Order {
 
   @Column({
     type: 'enum',
-    enum: ['PENDING', 'PAYMENT_PROCESSING', 'PAYMENT_SUCCESS', 'PAYMENT_FAILED', 'COMPLETED'],
+    enum: ['PENDING', 'PAYMENT_PROCESSING', 'PAYMENT_SUCCESS', 'PAYMENT_FAILED', 'PAYMENT_QUEUED_DLQ', 'COMPLETED'],
     default: 'PENDING',
   })
   status: string;

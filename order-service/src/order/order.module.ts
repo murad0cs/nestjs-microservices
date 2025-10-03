@@ -6,11 +6,13 @@ import { OrderController } from './order.controller';
 import { OrderService } from './order.service';
 import { Order } from '../entities/order.entity';
 import { ProductModule } from '../product/product.module';
+import { DLQModule } from '../dlq/dlq.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Order]),
     ProductModule, // Import to use ProductService
+    DLQModule, // Import for Dead Letter Queue support
     ClientsModule.registerAsync([
       {
         name: 'PAYMENT_SERVICE',

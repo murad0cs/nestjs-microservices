@@ -1,6 +1,31 @@
 # NestJS Microservices with RabbitMQ and PostgreSQL
 
-A professional microservices architecture implementation using NestJS, RabbitMQ, and PostgreSQL databases, demonstrating inter-service communication, data persistence, error handling, and Docker orchestration.
+A production-ready microservices architecture implementation using NestJS, RabbitMQ, and PostgreSQL databases, featuring Circuit Breaker pattern, Dead Letter Queue (DLQ), Distributed Tracing, comprehensive security features, and full Docker orchestration.
+
+## Key Production Features
+
+### Circuit Breaker Pattern
+- Prevents cascading failures between services
+- Automatic circuit opening on threshold breaches (50% failure rate)
+- Half-open state for recovery testing
+- Manual circuit reset capability
+- Real-time circuit breaker statistics
+- Configurable timeout and error thresholds
+
+### Dead Letter Queue (DLQ)
+- Automatic failed message routing to DLQ
+- Message retry mechanism with configurable attempts
+- DLQ statistics and monitoring
+- Manual message reprocessing
+- Prevents message loss during service failures
+
+### Distributed Tracing (OpenTelemetry + Jaeger)
+- End-to-end request tracing across microservices
+- Automatic span creation for all HTTP requests
+- Custom span creation for business operations
+- Performance bottleneck identification
+- Service dependency visualization
+- Jaeger UI for trace analysis
 
 ## Security Features
 
@@ -29,7 +54,7 @@ A professional microservices architecture implementation using NestJS, RabbitMQ,
 - Automatic type transformation
 - SQL injection prevention via TypeORM
 
-## Key Features Added
+## Core Business Features
 
  **Product Catalog System** - Centralized product management with unique SKUs  
  **Inventory Management** - Real-time stock tracking with automatic updates  
@@ -40,69 +65,197 @@ A professional microservices architecture implementation using NestJS, RabbitMQ,
 
 ## Architecture Overview
 
-This project consists of two microservices that communicate via RabbitMQ with persistent PostgreSQL databases:
+This project implements a production-grade microservices architecture with advanced resilience and monitoring capabilities:
 
-- **Order Service** (Port 3001): Handles order creation and initiates payment requests
-- **Payment Service** (Port 3002): Processes payments and returns responses
-- **RabbitMQ** (Ports 5672/15672): Message broker for inter-service communication
-- **PostgreSQL Databases**: Separate databases for each service for data persistence
-  - Order Database (Port 5433): Stores order information
-  - Payment Database (Port 5434): Stores payment transactions
+### Services
+- **Order Service** (Port 3001): Order management with Circuit Breaker protection
+- **Payment Service** (Port 3002): Payment processing with automatic retry mechanisms
+
+### Infrastructure
+- **RabbitMQ** (Ports 5672/15672): Message broker with Dead Letter Queue support
+- **PostgreSQL Databases**: Isolated databases per service
+  - Order Database (Port 5433): Orders, products, and inventory
+  - Payment Database (Port 5434): Payment transactions and history
+- **Jaeger** (Port 16686): Distributed tracing UI for request monitoring
+
+### Resilience Patterns
+- **Circuit Breaker**: Protects against cascading failures
+- **Dead Letter Queue**: Handles failed messages for later processing
+- **Retry Mechanism**: Automatic and manual payment retries
+- **Rate Limiting**: API protection against abuse
+- **Health Checks**: Service availability monitoring
 
 ### Communication Flow
+
 ```
-Client → Order Service → RabbitMQ → Payment Service
-         ↑                              ↓
-         ←── Response via RabbitMQ ────←
-         
-         Order Service ←→ PostgreSQL (orderdb)
-         Payment Service ←→ PostgreSQL (paymentdb)
+                                   ┌─────────────┐
+                                   │   Jaeger    │
+                                   │   (Tracing) │
+                                   └──────┬──────┘
+                                          │ Collect Traces
+                    ┌─────────────────────┼─────────────────────┐
+                    │                     │                     │
+                    ↓                     ↓                     ↓
+┌──────────────────────────────┐  ┌──────────────┐  ┌──────────────────────────┐
+│     ORDER SERVICE (3001)     │  │   RabbitMQ   │  │   PAYMENT SERVICE (3002) │
+│                              │  │              │  │                          │
+│  ┌────────────────────────┐  │  │ ┌──────────┐ │  │  ┌────────────────────┐  │
+│  │   Circuit Breaker      │  │  │ │  Payment │ │  │  │  Payment Processor │  │
+│  │   - Payment Service    │──┼──┼→│  Queue   │─┼──┼→ │  - Process Payment │  │
+│  │   - Fallback on Open   │  │  │ └──────────┘ │  │  │  - 80% Success     │  │
+│  └────────────────────────┘  │  │              │  │  └────────────────────┘  │
+│                              │  │ ┌──────────┐ │  │                          │
+│  ┌────────────────────────┐  │  │ │   DLQ    │ │  │  ┌────────────────────┐  │
+│  │   DLQ Handler          │←─┼──┼─│ (Failed  │ │  │  │  OpenTelemetry     │  │
+│  │   - Retry Logic        │  │  │ │ Messages)│ │  │  │  - Trace Spans     │  │
+│  │   - Manual Reprocess   │  │  │ └──────────┘ │  │  │  - Performance     │  │
+│  └────────────────────────┘  │  │              │  │  └────────────────────┘  │
+│                              │  │              │  │                          │
+│  ┌────────────────────────┐  │  │              │  │  ┌────────────────────┐  │
+│  │   Product Service      │  │  │              │  │  │  Security          │  │
+│  │   - Inventory Mgmt     │  │  │              │  │  │  - Rate Limiting   │  │
+│  │   - Stock Tracking     │  │  │              │  │  │  - Helmet Headers  │  │
+│  └────────────────────────┘  │  │              │  │  │  - CORS Config     │  │
+│                              │  │              │  │  └────────────────────┘  │
+└──────────────┬───────────────┘  └──────────────┘  └───────────┬──────────────┘
+               │                                                  │
+               ↓                                                  ↓
+       ┌──────────────┐                                  ┌──────────────┐
+       │  PostgreSQL  │                                  │  PostgreSQL  │
+       │   OrderDB    │                                  │  PaymentDB   │
+       │   (5433)     │                                  │   (5434)     │
+       └──────────────┘                                  └──────────────┘
 ```
+
+### Enhanced Architecture Features
+
+- **Circuit Breaker**: Protects Order Service from Payment Service failures
+- **Dead Letter Queue**: Captures and allows reprocessing of failed messages
+- **Distributed Tracing**: End-to-end request tracking via OpenTelemetry/Jaeger
+- **Rate Limiting**: API protection on all endpoints
+- **Security Headers**: Comprehensive security via Helmet middleware
 
 ### Detailed Payment Processing Flow
 
-When an order is placed, here's exactly how the payment processing works:
+When an order is placed, here's the complete flow including resilience patterns:
 
 ```
-USER                ORDER SERVICE              RABBITMQ              PAYMENT SERVICE
- |                       |                        |                         |
- |--POST /orders-------->|                        |                         |
- |                       |                        |                         |
- |                    Create Order                |                         |
- |                    Save to DB                  |                         |
- |                    (PENDING)                   |                         |
- |                       |                        |                         |
- |                    Send Payment ------>payment_queue                     |
- |                    Request                     |                         |
- |                       |                        |                         |
- |                    Wait for                   |------Message----------->|
- |                    Response                    |                         |
- |                       |                        |                    Process Payment
- |                       |                        |                    Save to DB
- |                       |                        |                    (Simulate 500-2000ms)
- |                       |                        |                    (80% success rate)
- |                       |                        |                         |
- |                       |<-------Response--------|<-----Payment Result-----|
- |                       |                        |                         |
- |                  Update Order                  |                         |
- |                  Update DB                     |                         |
- |                  (SUCCESS/FAILED)              |                         |
- |                       |                        |                         |
- |<---Order Response-----|                        |                         |
- |                       |                        |                         |
+USER            ORDER SERVICE         CIRCUIT BREAKER      RABBITMQ         PAYMENT SERVICE      JAEGER
+ |                    |                      |                 |                  |                |
+ |--POST /orders----->|                      |                 |                  |                |
+ |                    |                      |                 |                  |                |
+ |                 [Start Trace Span]--------|-----------------|------------------|--------------->|
+ |                    |                      |                 |                  |                |
+ |                 Validate Input            |                 |                  |                |
+ |                 Check Product             |                 |                  |                |
+ |                 Check Stock               |                 |                  |                |
+ |                 Create Order              |                 |                  |                |
+ |                 Save to DB                |                 |                  |                |
+ |                 (PENDING)                 |                 |                  |                |
+ |                    |                      |                 |                  |                |
+ |                    |--Check Circuit------->|                 |                  |                |
+ |                    |                      |                 |                  |                |
+ |                    |<--Circuit CLOSED------|                 |                  |                |
+ |                    |                      |                 |                  |                |
+ |                    |--Send Payment Request-|------->payment_queue              |                |
+ |                    |   (with timeout)      |                 |                  |                |
+ |                    |                      |                 |                  |                |
+ |                    |                      |                 |----Message------>|                |
+ |                    |                      |                 |                  |                |
+ |                    |                      |                 |              [Span: Process Payment]->|
+ |                    |                      |                 |              Validate Request      |
+ |                    |                      |                 |              Process Payment       |
+ |                    |                      |                 |              (500-2000ms delay)    |
+ |                    |                      |                 |              (80% success rate)    |
+ |                    |                      |                 |              Save to DB            |
+ |                    |                      |                 |                  |                |
+ |                    |                      |                 |<--Payment Result-|                |
+ |                    |                      |                 |                  |                |
+ |                    |<------Response--------|--------Success/Failure           |                |
+ |                    |                      |                 |                  |                |
+ |                    |--Update Circuit------>|                 |                  |                |
+ |                    |  (success/failure)    |                 |                  |                |
+ |                    |                      |                 |                  |                |
+ |                 Update Order Status        |                 |                  |                |
+ |                 Update Stock               |                 |                  |                |
+ |                 Update DB                  |                 |                  |                |
+ |                    |                      |                 |                  |                |
+ |                 [End Trace Span]-----------|-----------------|------------------|--------------->|
+ |                    |                      |                 |                  |                |
+ |<--Order Response---|                      |                 |                  |                |
+ |                    |                      |                 |                  |                |
+
+IF PAYMENT FAILS OR TIMEOUT:
+ |                    |                      |                 |                  |                |
+ |                    |--Circuit Records----->|                 |                  |                |
+ |                    |    Failure            |                 |                  |                |
+ |                    |                      |                 |                  |                |
+ |                    |------Send to DLQ------|------->payment_dlq               |                |
+ |                    |                      |                 |                  |                |
+ |                    |                      |                 |                  |                |
+ 
+IF CIRCUIT OPEN:
+ |                    |                      |                 |                  |                |
+ |                    |--Check Circuit------->|                 |                  |                |
+ |                    |                      |                 |                  |                |
+ |                    |<--Circuit OPEN--------|                 |                  |                |
+ |                    |   (Fallback Response) |                 |                  |                |
+ |                    |                      |                 |                  |                |
+ |<--503 Service------|                      |                 |                  |                |
+ |   Unavailable      |                      |                 |                  |                |
 ```
 
-#### Step-by-Step Process:
-1. **Order Creation**: User sends POST request to create order
-2. **Database Persistence**: Order is saved to PostgreSQL with pending status
-3. **Payment Request**: Order Service sends payment request to RabbitMQ queue
-4. **Message Processing**: Payment Service picks up message from queue
-5. **Payment Simulation**: Payment Service simulates processing (500-2000ms delay)
-6. **Success/Failure**: Randomly determines success (80%) or failure (20%)
-7. **Payment Storage**: Payment result saved to PostgreSQL database
-8. **Response**: Payment result sent back through RabbitMQ
-9. **Order Update**: Order Service updates order status in database
-10. **Client Response**: Final order status returned to user
+#### Step-by-Step Process with Resilience:
+
+1. **Request Initiation & Tracing**: 
+   - User sends POST request to create order
+   - OpenTelemetry creates root trace span
+   - Request tracked across all services
+
+2. **Validation & Stock Check**:
+   - Input validation with class-validator
+   - Product existence verification
+   - Stock availability check
+
+3. **Order Persistence**:
+   - Order saved to PostgreSQL with PENDING status
+   - Transaction ensures data consistency
+
+4. **Circuit Breaker Check**:
+   - Verifies payment service circuit state
+   - If OPEN: Returns fallback response immediately
+   - If CLOSED/HALF-OPEN: Proceeds with payment
+
+5. **Payment Request via RabbitMQ**:
+   - Message sent to payment_queue with timeout
+   - Circuit breaker wraps the call
+   - Dead Letter Queue configured for failures
+
+6. **Payment Processing**:
+   - Payment Service receives message
+   - Creates child trace span
+   - Simulates processing (500-2000ms)
+   - 80% success rate simulation
+
+7. **Response Handling**:
+   - Success: Updates order to PAYMENT_SUCCESS
+   - Failure: Updates order to PAYMENT_FAILED
+   - Timeout: Message routed to DLQ
+
+8. **Circuit Breaker Update**:
+   - Records success/failure metrics
+   - Updates circuit state if threshold breached
+   - Triggers state transitions (CLOSED→OPEN→HALF-OPEN)
+
+9. **Dead Letter Queue Processing**:
+   - Failed messages stored in payment_dlq
+   - Manual or automatic retry available
+   - Preserves message history
+
+10. **Trace Completion**:
+    - All spans sent to Jaeger
+    - Complete request flow visible
+    - Performance metrics captured
 
 ## Features
 
@@ -125,6 +278,8 @@ USER                ORDER SERVICE              RABBITMQ              PAYMENT SER
 - Node.js 18+ and npm
 - Docker and Docker Compose
 - Git
+- 4GB RAM minimum (for running all services)
+- Ports available: 3001, 3002, 5433, 5434, 5672, 15672, 16686
 
 ## Testing
 
@@ -212,6 +367,24 @@ docker-compose exec payment-service npm run test:e2e
 
 ## Installation & Setup
 
+### Quick Start with Docker Compose
+
+```bash
+# Clone and start all services
+git clone <repository-url>
+cd nestjs-microservices
+docker-compose up --build
+```
+
+This will start all services including:
+- Order Service: http://localhost:3001
+- Payment Service: http://localhost:3002  
+- RabbitMQ Management: http://localhost:15672 (admin/admin123)
+- Jaeger UI: http://localhost:16686
+- PostgreSQL databases on ports 5433 and 5434
+
+Wait for all services to be healthy before testing.
+
 ### Option 1: Run with Docker (Recommended)
 
 1. Clone the repository:
@@ -225,16 +398,40 @@ cd nestjs-microservices
 docker-compose up --build
 ```
 
-This will start:
-- PostgreSQL Order Database: postgres://localhost:5433
-- PostgreSQL Payment Database: postgres://localhost:5434
-- RabbitMQ Management UI: http://localhost:15672 (admin/admin123)
+Services will be available at:
 - Order Service: http://localhost:3001
 - Payment Service: http://localhost:3002
+- RabbitMQ Management: http://localhost:15672 (admin/admin123)
+- Jaeger UI: http://localhost:16686
+- PostgreSQL Order DB: postgres://localhost:5433
+- PostgreSQL Payment DB: postgres://localhost:5434
+
+3. Verify all services are healthy:
+```bash
+# Check health endpoints
+curl http://localhost:3001/orders/health/check
+curl http://localhost:3002/health
+
+# Check Circuit Breaker stats
+curl http://localhost:3001/circuit-breaker/stats
+
+# Check DLQ stats  
+curl http://localhost:3001/dlq/stats
+```
 
 ### Option 2: Run Locally
 
 1. Start infrastructure services using Docker:
+
+```bash
+# Start Jaeger for distributed tracing
+docker run -d --name jaeger \
+  -p 16686:16686 \
+  -p 14268:14268 \
+  jaegertracing/all-in-one:latest
+```
+
+2. Start other infrastructure services:
 ```bash
 # Start RabbitMQ
 docker run -d --name rabbitmq \
@@ -289,6 +486,72 @@ npm run start:dev
 ```
 
 ## API Documentation
+
+### Circuit Breaker Endpoints
+
+#### Get Circuit Breaker Statistics
+**GET** `/circuit-breaker/stats`
+
+Response:
+```json
+[
+  {
+    "name": "payment-service",
+    "state": "closed",
+    "stats": {
+      "failures": 2,
+      "successes": 48,
+      "rejections": 0,
+      "timeouts": 1,
+      "fallbacks": 0,
+      "percentiles": {
+        "0.5": 150,
+        "0.9": 250,
+        "0.99": 500
+      }
+    },
+    "enabled": true,
+    "volumeThreshold": 10
+  }
+]
+```
+
+#### Get Stats for Specific Circuit
+**GET** `/circuit-breaker/stats/:name`
+
+#### Reset Circuit Breaker
+**POST** `/circuit-breaker/reset/:name`
+
+### Dead Letter Queue Endpoints
+
+#### Get DLQ Statistics
+**GET** `/dlq/stats`
+
+Response:
+```json
+{
+  "queueName": "payment_dlq",
+  "messageCount": 3,
+  "oldestMessageAge": "5 minutes",
+  "processingStats": {
+    "totalProcessed": 10,
+    "successfulRetries": 7,
+    "permanentFailures": 3
+  }
+}
+```
+
+#### Reprocess DLQ Message
+**POST** `/dlq/reprocess/:orderId`
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Order reprocessed successfully",
+  "data": {...order details...}
+}
+```
 
 ### Product Catalog Endpoints
 
@@ -553,9 +816,12 @@ curl http://localhost:3002/payments/stats/summary
 
 ### Using Postman
 
-A complete Postman collection is included in the repository:
+A comprehensive Postman collection is included in the repository:
 
 1. Import `NestJS-Microservices.postman_collection.json`
+   - Contains all endpoints including Circuit Breaker, DLQ, and Security tests
+   - Organized by feature categories
+   - Includes failure scenario testing and load tests
 2. Import `NestJS-Microservices.postman_environment.json`
 3. Select "NestJS Microservices - Local" environment
 4. The collection includes:
@@ -567,6 +833,56 @@ A complete Postman collection is included in the repository:
    - Full order flow testing
 
 See `POSTMAN_GUIDE.md` for detailed instructions.
+
+## Monitoring and Observability
+
+### Distributed Tracing with Jaeger
+
+Access Jaeger UI at http://localhost:16686
+
+1. **View Service Map**:
+   - Navigate to "System Architecture" → "DAG" tab
+   - See service dependencies and call patterns
+
+2. **Search Traces**:
+   - Select service: "order-service" or "payment-service"
+   - Filter by operation, duration, or tags
+   - Click on traces to see detailed spans
+
+3. **Analyze Performance**:
+   - Identify slow operations
+   - Find bottlenecks in request flow
+   - Track error rates across services
+
+4. **Custom Spans**:
+   - Business operations are tracked with custom spans
+   - Database queries and RabbitMQ messages are instrumented
+
+### Circuit Breaker Monitoring
+
+```bash
+# Real-time circuit breaker status
+curl http://localhost:3001/circuit-breaker/stats
+
+# Watch circuit state changes
+watch -n 1 'curl -s http://localhost:3001/circuit-breaker/stats | jq .'
+```
+
+Circuit States:
+- **Closed**: Normal operation
+- **Open**: Requests are being rejected
+- **Half-Open**: Testing with limited requests
+
+### Dead Letter Queue Monitoring
+
+```bash
+# Check DLQ message count
+curl http://localhost:3001/dlq/stats
+
+# RabbitMQ Management UI
+# Navigate to http://localhost:15672
+# Check "payment_dlq" queue for failed messages
+```
 
 ## Monitoring
 
@@ -625,21 +941,39 @@ Local logs are stored in:
 nestjs-microservices/
 ├── order-service/
 │   ├── src/
+│   │   ├── circuit-breaker/
+│   │   │   ├── circuit-breaker.controller.ts
+│   │   │   ├── circuit-breaker.module.ts
+│   │   │   └── circuit-breaker.service.ts
 │   │   ├── config/
 │   │   │   ├── configuration.ts
 │   │   │   └── database.config.ts
+│   │   ├── dlq/
+│   │   │   ├── dlq.controller.ts
+│   │   │   ├── dlq.module.ts
+│   │   │   └── dlq.service.ts
 │   │   ├── dto/
 │   │   │   ├── create-order.dto.ts
 │   │   │   ├── payment-request.dto.ts
 │   │   │   └── payment-response.dto.ts
 │   │   ├── entities/
-│   │   │   └── order.entity.ts
+│   │   │   ├── order.entity.ts
+│   │   │   └── product.entity.ts
 │   │   ├── order/
 │   │   │   ├── order.controller.ts
 │   │   │   ├── order.module.ts
 │   │   │   └── order.service.ts
+│   │   ├── product/
+│   │   │   ├── product.controller.ts
+│   │   │   └── product.service.ts
+│   │   ├── tracing/
+│   │   │   └── tracing.ts
 │   │   ├── app.module.ts
 │   │   └── main.ts
+│   ├── test/
+│   │   ├── unit/
+│   │   ├── integration/
+│   │   └── e2e/
 │   ├── Dockerfile
 │   ├── .env
 │   └── package.json
@@ -660,13 +994,23 @@ nestjs-microservices/
 │   │   │   └── payment.service.ts
 │   │   ├── health/
 │   │   │   └── health.controller.ts
+│   │   ├── tracing/
+│   │   │   └── tracing.ts
 │   │   ├── app.module.ts
 │   │   └── main.ts
+│   ├── test/
+│   │   ├── unit/
+│   │   ├── integration/
+│   │   └── e2e/
 │   ├── Dockerfile
 │   ├── .env
 │   └── package.json
 ├── docker-compose.yml
-└── README.md
+├── README.md
+├── NestJS-Microservices.postman_collection.json
+├── NestJS-Microservices.postman_environment.json
+├── POSTMAN_GUIDE.md
+└── run-tests.sh
 ```
 
 ## Configuration
@@ -677,11 +1021,15 @@ nestjs-microservices/
 - `PORT`: Service port (default: 3001)
 - `RABBITMQ_URL`: RabbitMQ connection URL (default: amqp://admin:admin123@localhost:5672)
 - `RABBITMQ_QUEUE`: Queue name (default: payment_queue)
+- `RABBITMQ_DLQ`: Dead letter queue name (default: payment_dlq)
 - `DB_HOST`: PostgreSQL host (default: localhost)
 - `DB_PORT`: PostgreSQL port (default: 5433)
 - `DB_USERNAME`: Database username (default: orderuser)
 - `DB_PASSWORD`: Database password (default: orderpass123)
 - `DB_DATABASE`: Database name (default: orderdb)
+- `JAEGER_ENDPOINT`: Jaeger collector endpoint (default: http://localhost:14268/api/traces)
+- `OTEL_DEBUG`: Enable OpenTelemetry debug logging (default: false)
+- `CORS_ORIGINS`: Allowed CORS origins (default: http://localhost:3000)
 - `NODE_ENV`: Environment (development/production)
 
 #### Payment Service
@@ -693,6 +1041,9 @@ nestjs-microservices/
 - `DB_USERNAME`: Database username (default: paymentuser)
 - `DB_PASSWORD`: Database password (default: paymentpass123)
 - `DB_DATABASE`: Database name (default: paymentdb)
+- `JAEGER_ENDPOINT`: Jaeger collector endpoint (default: http://localhost:14268/api/traces)
+- `OTEL_DEBUG`: Enable OpenTelemetry debug logging (default: false)
+- `CORS_ORIGINS`: Allowed CORS origins (default: http://localhost:3000)
 - `NODE_ENV`: Environment (development/production)
 
 ## Payment Processing Details
@@ -725,17 +1076,35 @@ The Payment Service simulates a real payment gateway with the following characte
 - `PAYMENT_SUCCESS` → Payment completed successfully
 - `PAYMENT_FAILED` → Payment was rejected or failed
 
-## Error Handling
+## Error Handling and Resilience
 
-The system implements comprehensive error handling:
+The system implements multiple layers of resilience:
 
-1. **Connection Failures**: Automatic reconnection to RabbitMQ with exponential backoff
-2. **Database Failures**: TypeORM handles connection pooling and reconnection
-3. **Payment Failures**: Simulated random failures (20% failure rate) for testing
-4. **Timeout Handling**: 30-second timeout for payment processing
-5. **Validation Errors**: Input validation with detailed error messages
-6. **Service Unavailability**: Graceful degradation when Payment Service is down
-7. **Message Acknowledgment**: Manual ACK/NACK to ensure message reliability
+### Circuit Breaker Protection
+- Prevents cascading failures when services are unavailable
+- Automatically opens circuit after 50% failure threshold
+- Provides fallback responses during outages
+- Self-healing with automatic recovery attempts
+
+### Dead Letter Queue Processing
+- Failed messages are automatically routed to DLQ
+- Configurable retry attempts (default: 3)
+- Manual reprocessing capability for stuck messages
+- Preserves message history for debugging
+
+### Connection Management
+- Automatic reconnection to RabbitMQ with exponential backoff
+- Database connection pooling with automatic recovery
+- Health checks for early problem detection
+- Graceful shutdown handling
+
+### Error Categories
+1. **Transient Failures**: Automatically retried with backoff
+2. **Circuit Breaker Trips**: Fallback responses provided
+3. **Payment Failures**: Routed to DLQ for later processing
+4. **Validation Errors**: Immediate rejection with details
+5. **Timeout Errors**: Configurable timeouts with circuit breaker protection
+6. **Service Unavailability**: Graceful degradation with cached responses
 
 ## Security Considerations
 
@@ -801,15 +1170,33 @@ docker system prune -a --volumes
 
 ## Technologies Used
 
-- **NestJS**: Progressive Node.js framework
-- **PostgreSQL**: Relational database for data persistence
-- **TypeORM**: Object-Relational Mapping for database operations
-- **RabbitMQ**: Message broker for microservice communication
-- **Docker**: Containerization platform
-- **Winston**: Logging library
-- **class-validator**: Input validation
-- **TypeScript**: Type-safe JavaScript
-- **amqplib**: RabbitMQ client library
+### Core Framework
+- **NestJS**: Progressive Node.js framework with TypeScript
+- **TypeScript**: Type-safe JavaScript for robust development
+
+### Data Layer
+- **PostgreSQL**: Production-grade relational database
+- **TypeORM**: Advanced ORM with migration support
+
+### Messaging & Communication
+- **RabbitMQ**: Enterprise message broker with DLQ support
+- **amqplib**: Advanced AMQP 0-9-1 client
+
+### Resilience & Monitoring
+- **Opossum**: Circuit breaker implementation
+- **OpenTelemetry**: Distributed tracing instrumentation
+- **Jaeger**: Trace collection and visualization
+
+### Security
+- **Helmet**: Security headers middleware
+- **@nestjs/throttler**: Rate limiting protection
+- **class-validator**: Input validation and sanitization
+
+### Development & Testing
+- **Jest**: Testing framework with coverage
+- **Supertest**: HTTP assertion library
+- **Docker & Docker Compose**: Container orchestration
+- **Winston**: Structured logging with rotation
 
 ## Contributing
 
@@ -818,6 +1205,68 @@ docker system prune -a --volumes
 3. Commit your changes
 4. Push to the branch
 5. Open a Pull Request
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Services not appearing in Jaeger**
+   - Ensure Jaeger is running: `docker ps | grep jaeger`
+   - Check JAEGER_ENDPOINT in service logs
+   - Wait 30 seconds after starting services
+
+2. **Circuit Breaker always open**
+   - Check payment service health: `curl http://localhost:3002/health`
+   - Reset circuit manually: `curl -X POST http://localhost:3001/circuit-breaker/reset/payment-service`
+   - Review error threshold settings
+
+3. **Messages stuck in DLQ**
+   - Check DLQ stats: `curl http://localhost:3001/dlq/stats`
+   - Reprocess manually: `curl -X POST http://localhost:3001/dlq/reprocess/{orderId}`
+   - Check RabbitMQ Management UI for queue status
+
+4. **Rate limiting errors**
+   - Default limits: 10 req/sec, 50 req/10sec, 100 req/min
+   - Adjust limits in app.module.ts if needed
+   - Health endpoints are excluded from limits
+
+5. **Database connection errors**
+   - Verify PostgreSQL containers are running
+   - Check credentials in .env files
+   - Ensure ports 5433/5434 are not in use
+
+## Performance Tuning
+
+### Circuit Breaker Settings
+```typescript
+// Adjust in circuit-breaker.service.ts
+const defaultOptions = {
+  timeout: 30000,              // Request timeout
+  errorThresholdPercentage: 50, // Open circuit threshold
+  resetTimeout: 30000,         // Recovery attempt interval
+  rollingCountTimeout: 10000,  // Statistics window
+};
+```
+
+### Connection Pools
+```typescript
+// Database connections in database.config.ts
+extra: {
+  max: 20,           // Maximum connections
+  min: 5,            // Minimum connections
+  idleTimeoutMillis: 30000,
+}
+```
+
+### Rate Limiting
+```typescript
+// Adjust in app.module.ts
+ThrottlerModule.forRoot([
+  { ttl: 1000, limit: 10 },    // Per second
+  { ttl: 10000, limit: 50 },   // Per 10 seconds
+  { ttl: 60000, limit: 100 },  // Per minute
+]);
+```
 
 ## License
 

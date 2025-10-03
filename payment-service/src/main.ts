@@ -2,10 +2,14 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Transport, MicroserviceOptions } from '@nestjs/microservices';
-import * as helmet from 'helmet';
+const helmet = require('helmet');
 import { AppModule } from './app.module';
+import { startTracing, stopTracing } from './tracing/tracing';
 
 async function bootstrap() {
+  // Start tracing before app initialization
+  await startTracing();
+  
   const logger = new Logger('Bootstrap');
   
   const app = await NestFactory.create(AppModule);
@@ -74,5 +78,13 @@ async function bootstrap() {
   
   logger.log(`Payment Service is running on port ${port}`);
   logger.log(`Listening for RabbitMQ messages on queue: ${configService.get<string>('rabbitmq.queue')}`);
+  
+  // Graceful shutdown
+  process.on('SIGTERM', async () => {
+    logger.log('SIGTERM signal received: closing HTTP server');
+    await app.close();
+    await stopTracing();
+    process.exit(0);
+  });
 }
 bootstrap();

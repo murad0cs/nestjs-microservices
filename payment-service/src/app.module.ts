@@ -7,6 +7,7 @@ import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 import { PaymentModule } from './payment/payment.module';
 import { HealthModule } from './health/health.module';
+import { DLQModule } from './dlq/dlq.module';
 import configuration from './config/configuration';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -57,6 +58,7 @@ import { getDatabaseConfig } from './config/database.config';
     }),
     PaymentModule,
     HealthModule,
+    DLQModule, // Dead Letter Queue consumer
   ],
   providers: [
     // Global rate limiting guard

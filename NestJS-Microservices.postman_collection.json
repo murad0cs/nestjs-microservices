@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "f8c7a3b2-5d4e-4c8a-9b6f-1e2d3a4b5c6d",
-    "name": "NestJS Microservices - Complete System",
-    "description": "Complete API collection for testing NestJS microservices with Product Catalog, Order Management, Payment Processing, and PostgreSQL databases.",
+    "name": "NestJS Microservices - Production System",
+    "description": "Complete API collection for production-ready NestJS microservices featuring Circuit Breaker pattern, Dead Letter Queue, Distributed Tracing with Jaeger, Rate Limiting, Security headers, Product Catalog, Order Management, and Payment Processing with PostgreSQL databases.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -592,6 +592,116 @@
       "description": "Payment processing and monitoring"
     },
     {
+      "name": "Circuit Breaker",
+      "item": [
+        {
+          "name": "Get Circuit Breaker Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/circuit-breaker/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "circuit-breaker",
+                "stats"
+              ]
+            },
+            "description": "Get statistics for all circuit breakers in the system"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Circuit Breaker Stats by Name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/circuit-breaker/stats/payment-service",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "circuit-breaker",
+                "stats",
+                "payment-service"
+              ]
+            },
+            "description": "Get statistics for specific circuit breaker"
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Circuit Breaker",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/circuit-breaker/reset/payment-service",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "circuit-breaker",
+                "reset",
+                "payment-service"
+              ]
+            },
+            "description": "Manually reset a circuit breaker to closed state"
+          },
+          "response": []
+        }
+      ],
+      "description": "Circuit breaker pattern for resilience"
+    },
+    {
+      "name": "Dead Letter Queue",
+      "item": [
+        {
+          "name": "Get DLQ Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dlq/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dlq",
+                "stats"
+              ]
+            },
+            "description": "Get Dead Letter Queue statistics including message count and processing stats"
+          },
+          "response": []
+        },
+        {
+          "name": "Reprocess DLQ Message",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dlq/reprocess/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dlq",
+                "reprocess",
+                "{{orderId}}"
+              ]
+            },
+            "description": "Manually reprocess a message from the Dead Letter Queue"
+          },
+          "response": []
+        }
+      ],
+      "description": "Dead Letter Queue for handling failed messages"
+    },
+    {
       "name": "Security Tests",
       "item": [
         {
@@ -924,6 +1034,182 @@
         }
       ],
       "description": "End-to-end test scenarios"
+    },
+    {
+      "name": "Failure Scenarios",
+      "item": [
+        {
+          "name": "Test Circuit Breaker Open",
+          "item": [
+            {
+              "name": "1. Force Circuit Open (Run 10x quickly)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"productCode\": \"LAPTOP-001\",\n    \"quantity\": 1,\n    \"customerId\": \"CUST-CB-TEST\",\n    \"customerEmail\": \"cb.test@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/orders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "orders"
+                  ]
+                },
+                "description": "Stop payment-service, then run this 10 times to trigger circuit breaker"
+              },
+              "response": []
+            },
+            {
+              "name": "2. Check Circuit State",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/circuit-breaker/stats/payment-service",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "circuit-breaker",
+                    "stats",
+                    "payment-service"
+                  ]
+                },
+                "description": "Should show circuit is OPEN"
+              },
+              "response": []
+            },
+            {
+              "name": "3. Try Order (Should Fail Fast)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"productCode\": \"LAPTOP-001\",\n    \"quantity\": 1,\n    \"customerId\": \"CUST-CB-OPEN\",\n    \"customerEmail\": \"open@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/orders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "orders"
+                  ]
+                },
+                "description": "Should return fallback response immediately"
+              },
+              "response": []
+            },
+            {
+              "name": "4. Reset Circuit",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/circuit-breaker/reset/payment-service",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "circuit-breaker",
+                    "reset",
+                    "payment-service"
+                  ]
+                },
+                "description": "Manually reset circuit to closed"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Test DLQ Processing",
+          "item": [
+            {
+              "name": "1. Create Failed Order",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"productCode\": \"LAPTOP-001\",\n    \"quantity\": 1,\n    \"customerId\": \"CUST-DLQ-TEST\",\n    \"customerEmail\": \"dlq@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/orders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "orders"
+                  ]
+                },
+                "description": "Create order with payment service down to trigger DLQ"
+              },
+              "response": []
+            },
+            {
+              "name": "2. Check DLQ Stats",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/dlq/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dlq",
+                    "stats"
+                  ]
+                },
+                "description": "Should show messages in DLQ"
+              },
+              "response": []
+            },
+            {
+              "name": "3. Reprocess Message",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/dlq/reprocess/{{orderId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dlq",
+                    "reprocess",
+                    "{{orderId}}"
+                  ]
+                },
+                "description": "Reprocess the failed message from DLQ"
+              },
+              "response": []
+            }
+          ]
+        }
+      ],
+      "description": "Testing failure scenarios and resilience patterns"
     }
   ],
   "event": [

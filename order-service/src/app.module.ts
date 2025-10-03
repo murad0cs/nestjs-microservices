@@ -7,6 +7,8 @@ import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 import { OrderModule } from './order/order.module';
 import { ProductModule } from './product/product.module';
+import { DLQModule } from './dlq/dlq.module';
+import { CircuitBreakerModule } from './circuit-breaker/circuit-breaker.module';
 import configuration from './config/configuration';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -55,6 +57,8 @@ import { getDatabaseConfig } from './config/database.config';
         }),
       ],
     }),
+    CircuitBreakerModule, // Circuit breaker for resilience
+    DLQModule, // Dead Letter Queue module
     ProductModule, // Import before OrderModule so products are seeded first
     OrderModule,
   ],
