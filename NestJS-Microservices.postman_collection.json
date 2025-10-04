@@ -609,7 +609,7 @@
                 "stats"
               ]
             },
-            "description": "Get statistics for all circuit breakers in the system"
+            "description": "Get statistics for all circuit breakers. States: closed (normal), open (blocking requests), half-open (testing recovery)"
           },
           "response": []
         },
@@ -674,7 +674,7 @@
                 "stats"
               ]
             },
-            "description": "Get Dead Letter Queue statistics including message count and processing stats"
+            "description": "Get Dead Letter Queue statistics. Note: messageCount will typically show 0 due to auto-processing design - messages are immediately consumed and evaluated for retry"
           },
           "response": []
         },
@@ -1163,7 +1163,7 @@
                     "orders"
                   ]
                 },
-                "description": "Create order with payment service down to trigger DLQ"
+                "description": "Create order with payment service down to trigger DLQ. Note: Message will be auto-processed from DLQ immediately, so queue will show 0 messages"
               },
               "response": []
             },

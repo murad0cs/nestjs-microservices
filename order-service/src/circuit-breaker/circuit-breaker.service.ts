@@ -71,11 +71,11 @@ export class CircuitBreakerService {
 
     // Fallback function when circuit is open
     breaker.fallback((error, args) => {
-      this.logger.warn(`Circuit breaker ${name} fallback triggered: ${error.message}`);
+      this.logger.warn(`Circuit breaker ${name} fallback triggered: ${error?.message || 'Circuit open'}`);
       return {
         error: true,
         message: `Service temporarily unavailable (Circuit breaker ${name} is open)`,
-        circuitBreakerStatus: breaker.stats(),
+        circuitBreakerStatus: typeof breaker.stats === 'function' ? breaker.stats() : 'unavailable',
       };
     });
 

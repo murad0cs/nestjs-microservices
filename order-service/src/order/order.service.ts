@@ -111,8 +111,11 @@ export class OrderService {
       // Use Circuit Breaker for payment service call
       paymentResponse = await this.paymentCircuitBreaker.fire(paymentRequest);
     } catch (error) {
+      // Log the actual error for debugging
+      this.logger.error(`Payment error for order ${savedOrder.id}:`, error);
+      
       // Circuit breaker opened or request failed
-      if (error.message && error.message.includes('Circuit breaker')) {
+      if (error && (error.error === true || error.message?.includes('Circuit breaker') || error.message?.includes('Service temporarily unavailable'))) {
         this.logger.warn(`Circuit breaker is open for order ${savedOrder.id}`);
         
         // Immediately send to DLQ when circuit is open

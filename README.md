@@ -12,20 +12,21 @@ A production-ready microservices architecture implementation using NestJS, Rabbi
 - Real-time circuit breaker statistics
 - Configurable timeout and error thresholds
 
-### Dead Letter Queue (DLQ)
-- Automatic failed message routing to DLQ
-- Message retry mechanism with configurable attempts
-- DLQ statistics and monitoring
-- Manual message reprocessing
-- Prevents message loss during service failures
+### Dead Letter Queue (DLQ) - Active Retry System
+- **Auto-processing design**: Messages are immediately consumed and evaluated for retry
+- **Smart retry logic**: Automatically retries transient failures, skips permanent failures
+- **Real-time processing**: Queue shows 0 messages as they're processed instantly
+- **Retry conditions**: Retries up to 3 times within 1 hour window
+- **Skip conditions**: Won't retry "Invalid" or "Insufficient funds" errors
+- **Manual reprocessing**: Available via `/dlq/reprocess/:orderId` endpoint
+- **Statistics monitoring**: Track processed, retried, and failed messages
 
 ### Distributed Tracing (OpenTelemetry + Jaeger)
-- End-to-end request tracing across microservices
-- Automatic span creation for all HTTP requests
-- Custom span creation for business operations
-- Performance bottleneck identification
-- Service dependency visualization
-- Jaeger UI for trace analysis
+- **Current Status**: Simplified implementation (full tracing temporarily disabled due to TypeScript compatibility)
+- Jaeger UI available at http://localhost:16686
+- Trace helper functions preserved for future integration
+- Core service functionality unaffected
+- To be restored with proper OpenTelemetry package compatibility
 
 ## Security Features
 
@@ -106,9 +107,9 @@ This project implements a production-grade microservices architecture with advan
 │  └────────────────────────┘  │  │              │  │  └────────────────────┘  │
 │                              │  │ ┌──────────┐ │  │                          │
 │  ┌────────────────────────┐  │  │ │   DLQ    │ │  │  ┌────────────────────┐  │
-│  │   DLQ Handler          │←─┼──┼─│ (Failed  │ │  │  │  OpenTelemetry     │  │
-│  │   - Retry Logic        │  │  │ │ Messages)│ │  │  │  - Trace Spans     │  │
-│  │   - Manual Reprocess   │  │  │ └──────────┘ │  │  │  - Performance     │  │
+│  │   DLQ Handler          │←─┼──┼─│ (Active  │ │  │  │  OpenTelemetry     │  │
+│  │   - Auto-consume msgs  │  │  │ │Processor)│ │  │  │  - Simplified impl │  │
+│  │   - Smart retry logic  │  │  │ └──────────┘ │  │  │  - Core functions  │  │
 │  └────────────────────────┘  │  │              │  │  └────────────────────┘  │
 │                              │  │              │  │                          │
 │  ┌────────────────────────┐  │  │              │  │  ┌────────────────────┐  │
@@ -130,10 +131,25 @@ This project implements a production-grade microservices architecture with advan
 ### Enhanced Architecture Features
 
 - **Circuit Breaker**: Protects Order Service from Payment Service failures
-- **Dead Letter Queue**: Captures and allows reprocessing of failed messages
-- **Distributed Tracing**: End-to-end request tracking via OpenTelemetry/Jaeger
+- **Dead Letter Queue**: Active message processor with automatic retry logic
+- **Distributed Tracing**: Simplified implementation (full tracing pending restoration)
 - **Rate Limiting**: API protection on all endpoints
 - **Security Headers**: Comprehensive security via Helmet middleware
+
+### DLQ Message Flow
+```
+Failed Payment → payment_dlq → Auto-Consumer → Evaluation
+                                      ↓
+                              [Retryable?]
+                                ↓        ↓
+                              YES       NO
+                                ↓        ↓
+                          retry_queue   Log & Alert
+                                ↓
+                          (30s delay)
+                                ↓
+                          payment_queue
+```
 
 ### Detailed Payment Processing Flow
 
@@ -192,6 +208,14 @@ IF PAYMENT FAILS OR TIMEOUT:
  |                    |                      |                 |                  |                |
  |                    |------Send to DLQ------|------->payment_dlq               |                |
  |                    |                      |                 |                  |                |
+ |                    |                      |                 |--Auto Consume--->|                |
+ |                    |                      |                 | (Immediate)      |                |
+ |                    |                      |                 |                  |                |
+ |                    |                      |                 |<-Evaluate Retry--|                |
+ |                    |                      |                 |                  |                |
+ |                    |                      |                 |--If Retryable--->|                |
+ |                    |                      |                 |  Send to Retry   |                |
+ |                    |                      |                 |  Queue (30s)     |                |
  |                    |                      |                 |                  |                |
  
 IF CIRCUIT OPEN:
@@ -247,10 +271,13 @@ IF CIRCUIT OPEN:
    - Updates circuit state if threshold breached
    - Triggers state transitions (CLOSED→OPEN→HALF-OPEN)
 
-9. **Dead Letter Queue Processing**:
-   - Failed messages stored in payment_dlq
-   - Manual or automatic retry available
-   - Preserves message history
+9. **Dead Letter Queue Auto-Processing**:
+   - Failed messages sent to payment_dlq
+   - DLQ consumer immediately processes message
+   - Evaluates retry eligibility (< 3 attempts, < 1 hour, not permanent failure)
+   - If retryable: sends to retry_queue with 30s delay
+   - If not: logs for manual intervention
+   - Queue shows 0 messages due to immediate consumption
 
 10. **Trace Completion**:
     - All spans sent to Jaeger
@@ -275,11 +302,17 @@ IF CIRCUIT OPEN:
 
 ## Prerequisites
 
+### For Docker Setup (Recommended):
+- **Docker Desktop** (includes Docker Compose)
+- **Git** for cloning the repository
+- **4GB RAM minimum** (6GB recommended)
+- **Available ports**: 3001, 3002, 5433, 5434, 5672, 15672, 16686
+
+### For Local Development (Optional):
 - Node.js 18+ and npm
-- Docker and Docker Compose
-- Git
-- 4GB RAM minimum (for running all services)
-- Ports available: 3001, 3002, 5433, 5434, 5672, 15672, 16686
+- PostgreSQL 15+
+- RabbitMQ 3.12+
+- Jaeger (optional for tracing)
 
 ## Testing
 
@@ -367,23 +400,48 @@ docker-compose exec payment-service npm run test:e2e
 
 ## Installation & Setup
 
-### Quick Start with Docker Compose
+### Quick Start with Docker (Recommended - Zero Local Dependencies)
 
 ```bash
-# Clone and start all services
+# 1. Clone the repository
 git clone <repository-url>
 cd nestjs-microservices
+
+# 2. Start all services with Docker Compose
 docker-compose up --build
+
+# 3. Wait ~1 minute for all services to be healthy
+# 4. Test the system is running
+curl http://localhost:3001/orders/health/check
 ```
 
-This will start all services including:
-- Order Service: http://localhost:3001
-- Payment Service: http://localhost:3002  
-- RabbitMQ Management: http://localhost:15672 (admin/admin123)
-- Jaeger UI: http://localhost:16686
-- PostgreSQL databases on ports 5433 and 5434
+**That's it!** No need to install Node.js, PostgreSQL, RabbitMQ, or any dependencies locally.
 
-Wait for all services to be healthy before testing.
+#### Services will be available at:
+- **Order Service**: http://localhost:3001
+- **Payment Service**: http://localhost:3002  
+- **RabbitMQ Management**: http://localhost:15672 (username: `admin`, password: `admin123`)
+- **Jaeger UI**: http://localhost:16686
+- **PostgreSQL Order DB**: localhost:5433 (user: `orderuser`, password: `orderpass123`)
+- **PostgreSQL Payment DB**: localhost:5434 (user: `paymentuser`, password: `paymentpass123`)
+
+#### Docker Commands:
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop all services
+docker-compose down
+
+# Stop and remove all data
+docker-compose down -v
+
+# Rebuild after code changes
+docker-compose up --build
+```
 
 ### Option 1: Run with Docker (Recommended)
 
@@ -1205,6 +1263,28 @@ docker system prune -a --volumes
 3. Commit your changes
 4. Push to the branch
 5. Open a Pull Request
+
+## Important System Behaviors
+
+### DLQ Auto-Processing
+The Dead Letter Queue shows 0 messages because it's an **active processor**, not a storage queue:
+- Messages are immediately consumed when they arrive
+- Evaluated for retry eligibility in milliseconds
+- Automatically sent to retry queue or logged for manual intervention
+- This is by design for self-healing capability
+
+### Circuit Breaker Fallback
+When payment service is down:
+- Circuit breaker opens after timeout (30 seconds)
+- Returns fallback response immediately for subsequent requests
+- Order status becomes `PAYMENT_FAILED`
+- Messages are sent to DLQ for automatic retry
+- Circuit enters half-open state after reset timeout
+
+### Payment Service Simulation
+- 80% success rate (configurable in payment.service.ts)
+- Random 500-2000ms processing delay
+- Simulated failure reasons for testing
 
 ## Troubleshooting
 
