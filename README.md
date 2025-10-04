@@ -443,28 +443,7 @@ docker-compose down -v
 docker-compose up --build
 ```
 
-### Option 1: Run with Docker (Recommended)
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd nestjs-microservices
-```
-
-2. Build and start all services:
-```bash
-docker-compose up --build
-```
-
-Services will be available at:
-- Order Service: http://localhost:3001
-- Payment Service: http://localhost:3002
-- RabbitMQ Management: http://localhost:15672 (admin/admin123)
-- Jaeger UI: http://localhost:16686
-- PostgreSQL Order DB: postgres://localhost:5433
-- PostgreSQL Payment DB: postgres://localhost:5434
-
-3. Verify all services are healthy:
+#### Verify all services are healthy:
 ```bash
 # Check health endpoints
 curl http://localhost:3001/orders/health/check
@@ -1348,12 +1327,8 @@ ThrottlerModule.forRoot([
 ]);
 ```
 
-## License
-
-This project is licensed under the MIT License.
-
 ## Author
 
-Built using NestJS, RabbitMQ, and PostgreSQL
+A microservices demonstration project built with NestJS, RabbitMQ, and PostgreSQL, showcasing production-ready patterns including Circuit Breaker, Dead Letter Queue, and distributed tracing.
 
 ---
